@@ -24,7 +24,9 @@ export default async function PresensiPage(
   
   const bulanQuery = searchParams.bulan || defaultBulan;
   const [tahun, bulan] = bulanQuery.split('-');
-  
+  const filterTahun = Number(tahun) || Number(yyyyNow);
+  const filterBulan = Number(bulan) || Number(mmNow);
+
   // Cari tanggal 1 dan tanggal terakhir di bulan yang dipilih
   const startDate = `${tahun}-${bulan}-01`;
   const lastDay = new Date(Number(tahun), Number(bulan), 0).getDate();
@@ -100,14 +102,7 @@ export default async function PresensiPage(
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Rekap Presensi Harian</h2>
-          <p className="text-sm text-slate-500 mt-1">Monitor kehadiran harian pegawai Biro Kelembagaan K3</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition">
-            <Download className="w-4 h-4" />
-            Export Excel
-          </button>
-          <ModalImportPresensi daftarPegawai={daftarPegawai} />
+          <p className="text-sm text-slate-500 mt-1">Monitor kehadiran harian pegawai Dit. Kelembagaan K3</p>
         </div>
       </div>
 
@@ -144,7 +139,7 @@ export default async function PresensiPage(
 
       {/* TABLE & TOOLBAR SECTION */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <PresensiToolbar />
+        <PresensiToolbar bulan={filterBulan} tahun={filterTahun} />
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">

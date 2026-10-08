@@ -215,6 +215,7 @@ export const rekapPresensiBulanan = pgTable('rekap_presensi_bulanan', {
   nominalKehadiran: numeric('nominal_kehadiran', { precision: 15, scale: 2 }).notNull(),
   jumlahPotonganKehadiran: numeric('jumlah_potongan_kehadiran', { precision: 15, scale: 2 }).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
   pegawaiPeriodeUnique: uniqueIndex('rekap_presensi_bulanan_pegawai_periode_unique').on(table.idPegawai, table.bulan, table.tahun),
 }));
@@ -225,7 +226,7 @@ export const tukinBulanan = pgTable('tukin_bulanan', {
   // snapshot jabatan saat itu -- jabatan pegawai bisa berubah, histori tukin ttp
   // mencatat jabatan yg berlaku waktu itu
   idMasterJabatan: uuid('id_master_jabatan').notNull().references(() => masterJabatan.id),
-  idRekapPresensiBulanan: uuid('id_rekap_presensi_bulanan').notNull().references(() => rekapPresensiBulanan.id),
+  idRekapPresensiBulanan: uuid('id_rekap_presensi_bulanan').references(() => rekapPresensiBulanan.id),
   bulan: integer('bulan').notNull(),
   tahun: integer('tahun').notNull(),
   // SNAPSHOT dari master_kelas_jabatan.base_tukin saat itu -- kalau base_tukin
@@ -238,6 +239,7 @@ export const tukinBulanan = pgTable('tukin_bulanan', {
   nominalKinerja: numeric('nominal_kinerja', { precision: 15, scale: 2 }).notNull(),
   dibayarkan: numeric('dibayarkan', { precision: 15, scale: 2 }).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
   pegawaiPeriodeUnique: uniqueIndex('tukin_bulanan_pegawai_periode_unique').on(table.idPegawai, table.bulan, table.tahun),
 }));

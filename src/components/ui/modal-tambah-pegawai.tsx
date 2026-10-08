@@ -28,19 +28,31 @@ const DAFTAR_AGAMA = ["Islam", "Kristen Protestan", "Katolik", "Hindu", "Buddha"
 export default function ModalTambahPegawai() {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [pendidikanRows, setPendidikanRows] = useState([{ id: 0 }]);
+  const [diklatRows, setDiklatRows] = useState([{ id: 0 }]);
+  const [nextPendidikanId, setNextPendidikanId] = useState(1);
+  const [nextDiklatId, setNextDiklatId] = useState(1);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    const formData = new FormData(e.currentTarget);
-    await simpanPegawaiBaru(formData);
-    setIsLoading(false);
-    setIsOpen(false);
+    setSubmitError('');
+    try {
+      const formData = new FormData(e.currentTarget);
+      await simpanPegawaiBaru(formData);
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Gagal menyimpan data pegawai:', error);
+      setSubmitError('Data pegawai gagal disimpan. Periksa kembali data lalu coba lagi.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <>
-      <button onClick={() => setIsOpen(true)} className="flex items-center gap-2 bg-[#1a4b8c] hover:bg-[#123666] text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow-sm">
+      <button onClick={() => { setSubmitError(''); setIsOpen(true); }} className="flex items-center gap-2 bg-[#1a4b8c] hover:bg-[#123666] text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow-sm">
         <Plus className="w-4 h-4" /> Tambah Pegawai
       </button>
 
@@ -126,7 +138,97 @@ export default function ModalTambahPegawai() {
                 </div>
               </div>
 
+              {/* Grup 3: Data Diklat & Pendidikan */}
+              <div className="space-y-5">
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-slate-700">Riwayat Pendidikan</h4>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendidikanRows(rows => [...rows, { id: nextPendidikanId }]);
+                        setNextPendidikanId(id => id + 1);
+                      }}
+                      className="text-xs font-semibold text-[#1a4b8c] hover:underline"
+                    >
+                      + Tambah Pendidikan
+                    </button>
+                  </div>
+                  {pendidikanRows.map((row, index) => (
+                    <div key={row.id} className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-lg border border-slate-100 p-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1">Jenjang</label>
+                        <input type="text" name="pendidikanJenjang" placeholder="Contoh: S1" className="w-full px-4 py-2 border rounded-lg text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1">Nama Institusi</label>
+                        <input type="text" name="pendidikanInstitusi" className="w-full px-4 py-2 border rounded-lg text-sm" />
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <div className="flex-1">
+                          <label className="block text-xs font-bold text-slate-600 mb-1">Program Studi</label>
+                          <input type="text" name="pendidikanProgramStudi" className="w-full px-4 py-2 border rounded-lg text-sm" />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setPendidikanRows(rows => rows.filter(item => item.id !== row.id))}
+                          aria-label={`Hapus pendidikan ${index + 1}`}
+                          title="Hapus pendidikan"
+                          className="px-3 py-2 text-slate-400 hover:text-red-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </section>
+
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-slate-700">Riwayat Diklat</h4>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDiklatRows(rows => [...rows, { id: nextDiklatId }]);
+                        setNextDiklatId(id => id + 1);
+                      }}
+                      className="text-xs font-semibold text-[#1a4b8c] hover:underline"
+                    >
+                      + Tambah Diklat
+                    </button>
+                  </div>
+                  {diklatRows.map((row, index) => (
+                    <div key={row.id} className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-lg border border-slate-100 p-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1">Nama Diklat</label>
+                        <input type="text" name="diklatNama" className="w-full px-4 py-2 border rounded-lg text-sm" />
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <div className="flex-1">
+                          <label className="block text-xs font-bold text-slate-600 mb-1">Tahun</label>
+                          <input type="number" name="diklatTahun" step="1" className="w-full px-4 py-2 border rounded-lg text-sm" />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setDiklatRows(rows => rows.filter(item => item.id !== row.id))}
+                          aria-label={`Hapus diklat ${index + 1}`}
+                          title="Hapus diklat"
+                          className="px-3 py-2 text-slate-400 hover:text-red-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </section>
+              </div>
+              
+              <hr className="border-slate-100" />
+
+              {/* Grup 4: Data Jabatan */}
+
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                {submitError && <p role="alert" className="mr-auto self-center text-sm text-red-600">{submitError}</p>}
                 <button type="button" onClick={() => setIsOpen(false)} className="px-5 py-2 hover:bg-slate-100 rounded-lg text-sm font-semibold text-slate-600 transition">Batal</button>
                 <button type="submit" disabled={isLoading} className="bg-[#1a4b8c] hover:bg-[#123666] text-white px-5 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50">
                   {isLoading ? 'Menyimpan...' : 'Simpan Data'}

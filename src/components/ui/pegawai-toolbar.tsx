@@ -67,7 +67,7 @@ export default function PegawaiToolbar() {
     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
         <h2 className="text-2xl font-bold text-slate-800">Data Pegawai</h2>
-        <p className="text-sm text-slate-500 mt-1">Kelola data pegawai Biro Kelembagaan Keselamatan dan Kesehatan Kerja</p>
+        <p className="text-sm text-slate-500 mt-1">Kelola data pegawai Dit. Kelembagaan K3</p>
       </div>
       
       <div className="flex flex-wrap items-center gap-3">

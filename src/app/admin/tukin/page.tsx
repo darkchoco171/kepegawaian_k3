@@ -1,12 +1,12 @@
 import React from 'react';
-import { Download, Calculator, Wallet, Users, ArrowUpRight } from 'lucide-react';
+import { Wallet, Users, ArrowUpRight } from 'lucide-react';
 import { db } from '@/lib/db';
 import { tukinBulanan, pegawai } from '@/db/schema';
 import { count, eq, ilike, and, desc } from 'drizzle-orm';
 import TukinToolbar from '@/components/ui/tukin-toolbar';
 import Link from 'next/link';
 
-// Helper buat ubah angka jadi format Rupiah (Rp)
+// Helper buat format Rupiah
 const formatRupiah = (angka: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
 };
@@ -84,23 +84,11 @@ export default async function TukinPage(
 
   return (
     <div className="space-y-6">
-      {/* HEADER SECTION */}
+      {/* HEADER SECTION - Udah bersih dari tombol dan kolom search */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Tunjangan Kinerja Bulanan</h2>
           <p className="text-sm text-slate-500 mt-1">Rekap dan kalkulasi Tukin pegawai berdasarkan absensi dan kinerja</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition">
-            <Download className="w-4 h-4" />
-            Export Excel
-          </button>
-          
-          {/* Tombol Generate Tukin (Bisa dibuat action/modal ke depannya) */}
-          <button className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow-sm">
-            <Calculator className="w-4 h-4" />
-            Kalkulasi Tukin
-          </button>
         </div>
       </div>
 
@@ -128,7 +116,8 @@ export default async function TukinPage(
 
       {/* TABLE & TOOLBAR SECTION */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <TukinToolbar />
+        {/* TukinToolbar yang baru, udah dikasih props bulan dan tahun */}
+        <TukinToolbar bulan={filterBulan} tahun={filterTahun} />
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">

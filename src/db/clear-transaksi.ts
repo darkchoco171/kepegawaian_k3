@@ -1,7 +1,7 @@
 import path from "path";
 import * as dotenv from "dotenv";
 import { db } from "./index";
-import { absensi, cuti } from "./schema";
+import { presensiHarian, pengajuanCuti } from "./schema";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
@@ -9,9 +9,9 @@ async function clearTransaksi() {
   console.log("🧹 Menghapus semua data absensi dan cuti...");
   
   // Hapus tabel cuti dulu karena punya foreign key ke absensi
-  await db.delete(cuti);
+  await db.delete(pengajuanCuti);
   // Baru hapus tabel absensi
-  await db.delete(absensi);
+  await db.delete(presensiHarian);
 
   console.log("✨ Berhasil mengosongkan tabel absensi & cuti!");
   process.exit(0);

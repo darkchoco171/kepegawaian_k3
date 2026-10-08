@@ -11,6 +11,7 @@ export default function NavbarAdmin() {
   const navLinks = [
     { name: 'Dasbor', href: '/admin/dashboard' },
     { name: 'Data Pegawai', href: '/admin/pegawai' },
+    { name: 'Manajemen Kinerja', href: '/admin/manajemen-kinerja' },
     { name: 'Presensi', href: '/admin/presensi' },
     { name: 'Tunjangan Kinerja', href: '/admin/tukin' },
     { name: 'Manajemen Cuti', href: '/admin/cuti' },
@@ -26,7 +27,7 @@ export default function NavbarAdmin() {
           </div>
           <div>
             <h1 className="font-bold text-[#1a4b8c] leading-tight text-sm">SIMPEG K3 — Panel Administrator</h1>
-            <p className="text-[10px] text-slate-500">Bina Kelembagaan Keselamatan dan Kesehatan Kerja</p>
+            <p className="text-[10px] text-slate-500">Direktorat Kelembagaan Keselamatan dan Kesehatan Kerja</p>
           </div>
         </div>
 
