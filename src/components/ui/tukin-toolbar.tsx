@@ -25,30 +25,20 @@ export default function TukinToolbar({ bulan, tahun }: { bulan: number; tahun: n
 
   const handleExport = async () => {
     setLoadingExport(true);
-    const rawData = await getExportDataTukin(bulan, tahun);
     
-    if (rawData.length === 0) {
-      alert('Datanya kosong nih, Sal! Belum ada yang bisa di-export.');
+    // Panggil fungsi export yang sekarang mengembalikan base64 string
+    const base64Data = await getExportDataTukin(bulan, tahun);
+    
+    if (!base64Data) {
+      alert('Data kosong, belum ada yang bisa di-export!');
       setLoadingExport(false);
       return;
     }
 
-    const formattedData = rawData.map((item, i) => ({
-      'No': i + 1,
-      'NIP': item.nip,
-      'Nama Pegawai': item.nama,
-      'Predikat Kinerja': item.capaianKinerja || '-',
-      '% Kinerja': item.persentaseKinerja ? Math.round(Number(item.persentaseKinerja) * 100) + '%' : '-',
-      'Nominal Kinerja (70%)': Number(item.nominalKinerja || 0),
-      '% Kehadiran': item.persentaseKehadiran ? Math.round(Number(item.persentaseKehadiran)) + '%' : '0%',
-      'Nominal Kehadiran (30%)': Number(item.nominalKehadiran || 0),
-      'Total Dibayarkan (Rp)': Number(item.dibayarkan || 0),
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(formattedData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, `Tukin ${bulan}-${tahun}`);
+    // Ubah base64 string jadi Blob / File Excel di sisi client
+    const workbook = XLSX.read(base64Data, { type: 'base64' });
     XLSX.writeFile(workbook, `Rekap_Tukin_${bulan}_${tahun}.xlsx`);
+    
     setLoadingExport(false);
   };
 

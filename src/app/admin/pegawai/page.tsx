@@ -42,6 +42,10 @@ export default async function DataPegawaiPage(
     limit,
     offset,
     orderBy: (pegawai, { asc }) => [asc(pegawai.namaLengkap)],
+    with: {
+      riwayatPendidikan: true,
+      riwayatDiklat: true,
+    },
   });
 
   // 3. Hitung Total Data untuk Pagination yang akurat

@@ -200,7 +200,7 @@ export const rekapPresensiBulanan = pgTable('rekap_presensi_bulanan', {
   hariKerja: integer('hari_kerja').notNull().default(0),
   totalMenitTerlambat: integer('total_menit_terlambat').notNull().default(0),
   jumlahLupaAbsen: integer('jumlah_lupa_absen').notNull().default(0),
-  jumlahAlpa: integer('jumlah_alpa').notNull().default(0), // sempat hilang di desain awal, sudah ditambahkan
+  jumlahAlpa: integer('jumlah_alpa').notNull().default(0),
   jumlahCtGugurKandunganGt1Bln: integer('jumlah_ct_gugur_kandungan_gt1bln').notNull().default(0),
   cutiSakitBulanII: boolean('cuti_sakit_bulan_ii').notNull().default(false),
   cutiSakitBulanIII: boolean('cuti_sakit_bulan_iii').notNull().default(false),

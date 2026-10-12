@@ -4,6 +4,47 @@ import React, { useState } from 'react';
 import { Pencil, X } from 'lucide-react';
 import { editPegawaiData } from '@/app/admin/pegawai/actions';
 
+type PendidikanFormRow = {
+  key: string;
+  id: string;
+  jenjang: string;
+  namaInstitusi: string;
+  programStudi: string;
+};
+
+type DiklatFormRow = {
+  key: string;
+  id: string;
+  namaDiklat: string;
+  tahunDiklat: string;
+};
+
+type PegawaiEditData = {
+  id: string;
+  namaLengkap: string;
+  nip: string;
+  tanggalMulaiKerja: string | null;
+  jabatanTim: string | null;
+  keterangan: string | null;
+  tempatLahir: string | null;
+  tglLahir: string | null;
+  jenisKelamin: 'L' | 'P' | null;
+  agama: string | null;
+  statusPernikahan: string | null;
+  kontak: string | null;
+  riwayatPendidikan: Array<{
+    id: string;
+    jenjang: string | null;
+    namaInstitusi: string | null;
+    programStudi: string | null;
+  }>;
+  riwayatDiklat: Array<{
+    id: string;
+    namaDiklat: string;
+    tahunDiklat: number | null;
+  }>;
+};
+
 const DAFTAR_TIM = [
     "Akreditasi dan Pengembangan Kelembagaan K3 Bidang Kesehatan Kerja",
     "Akreditasi dan Pengembangan Kelembagaan K3 Bidang Teknik Kesehatan Kerja",
@@ -25,9 +66,27 @@ const DAFTAR_TIM = [
 const DAFTAR_STATUS = ["Aktif", "Cuti", "Tugas Belajar"];
 const DAFTAR_AGAMA = ["Islam", "Kristen Protestan", "Katolik", "Hindu", "Buddha", "Konghucu"];
 
-export default function ModalEditPegawai({ pegawai }: { pegawai: any }) {
+export default function ModalEditPegawai({ pegawai }: { pegawai: PegawaiEditData }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [pendidikanRows, setPendidikanRows] = useState<PendidikanFormRow[]>(() =>
+    pegawai.riwayatPendidikan.map(pendidikan => ({
+      key: pendidikan.id,
+      id: pendidikan.id,
+      jenjang: pendidikan.jenjang || '',
+      namaInstitusi: pendidikan.namaInstitusi || '',
+      programStudi: pendidikan.programStudi || '',
+    })),
+  );
+  const [diklatRows, setDiklatRows] = useState<DiklatFormRow[]>(() =>
+    pegawai.riwayatDiklat.map(diklat => ({
+      key: diklat.id,
+      id: diklat.id,
+      namaDiklat: diklat.namaDiklat || '',
+      tahunDiklat: diklat.tahunDiklat?.toString() || '',
+    })),
+  );
 
   // Status awal berdasarkan kolom keterangan di database
   const statusAktif = pegawai.keterangan ? pegawai.keterangan : 'Aktif';
@@ -35,17 +94,24 @@ export default function ModalEditPegawai({ pegawai }: { pegawai: any }) {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    const formData = new FormData(e.currentTarget);
-    await editPegawaiData(formData);
-    setIsLoading(false);
-    setIsOpen(false);
+    setSubmitError('');
+    try {
+      const formData = new FormData(e.currentTarget);
+      await editPegawaiData(formData);
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Gagal mengubah data pegawai:', error);
+      setSubmitError('Perubahan gagal disimpan. Periksa kembali data lalu coba lagi.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <>
       {/* Tombol Ikon Edit */}
       <button 
-        onClick={() => setIsOpen(true)} 
+        onClick={() => { setSubmitError(''); setIsOpen(true); }} 
         className="inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-500 hover:text-white text-amber-600 border border-amber-200 px-3 py-1.5 rounded text-xs font-semibold transition"
         title="Edit Pegawai"
       >
@@ -80,7 +146,7 @@ export default function ModalEditPegawai({ pegawai }: { pegawai: any }) {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Sub Bagian / Tim</label>
-                  <select name="jabatanTim" defaultValue={pegawai.jabatanTim || ''} required className="w-full px-4 py-2 border rounded-lg text-sm">
+                  <select name="jabatanTim" defaultValue={pegawai.jabatanTim || ''} className="w-full px-4 py-2 border rounded-lg text-sm">
                     <option value="">-- Pilih --</option>
                     {DAFTAR_TIM.map(tim => <option key={tim} value={tim}>{tim}</option>)}
                   </select>
@@ -136,7 +202,96 @@ export default function ModalEditPegawai({ pegawai }: { pegawai: any }) {
                 </div>
               </div>
 
+              <hr className="border-slate-100" />
+
+              {/* Riwayat Pendidikan */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-slate-700">Riwayat Pendidikan</h4>
+                  <button
+                    type="button"
+                    onClick={() => setPendidikanRows(rows => [
+                      ...rows,
+                      { key: `baru-${Date.now()}-${rows.length}`, id: '', jenjang: '', namaInstitusi: '', programStudi: '' },
+                    ])}
+                    className="text-xs font-semibold text-[#1a4b8c] hover:underline"
+                  >
+                    + Tambah Pendidikan
+                  </button>
+                </div>
+                {pendidikanRows.map((row, index) => (
+                  <div key={row.key} className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-lg border border-slate-100 p-3">
+                    <input type="hidden" name="pendidikanId" value={row.id} />
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">Jenjang</label>
+                      <input type="text" name="pendidikanJenjang" defaultValue={row.jenjang} placeholder="Contoh: S1" className="w-full px-4 py-2 border rounded-lg text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">Nama Institusi</label>
+                      <input type="text" name="pendidikanInstitusi" defaultValue={row.namaInstitusi} className="w-full px-4 py-2 border rounded-lg text-sm" />
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <label className="block text-xs font-bold text-slate-600 mb-1">Program Studi</label>
+                        <input type="text" name="pendidikanProgramStudi" defaultValue={row.programStudi} className="w-full px-4 py-2 border rounded-lg text-sm" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPendidikanRows(rows => rows.filter(item => item.key !== row.key))}
+                        aria-label={`Hapus pendidikan ${index + 1}`}
+                        title="Hapus pendidikan"
+                        className="px-3 py-2 text-slate-400 hover:text-red-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </section>
+
+              {/* Riwayat Diklat */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-slate-700">Riwayat Diklat</h4>
+                  <button
+                    type="button"
+                    onClick={() => setDiklatRows(rows => [
+                      ...rows,
+                      { key: `baru-${Date.now()}-${rows.length}`, id: '', namaDiklat: '', tahunDiklat: '' },
+                    ])}
+                    className="text-xs font-semibold text-[#1a4b8c] hover:underline"
+                  >
+                    + Tambah Diklat
+                  </button>
+                </div>
+                {diklatRows.map((row, index) => (
+                  <div key={row.key} className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-lg border border-slate-100 p-3">
+                    <input type="hidden" name="diklatId" value={row.id} />
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">Nama Diklat</label>
+                      <input type="text" name="diklatNama" defaultValue={row.namaDiklat} className="w-full px-4 py-2 border rounded-lg text-sm" />
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <label className="block text-xs font-bold text-slate-600 mb-1">Tahun</label>
+                        <input type="number" name="diklatTahun" defaultValue={row.tahunDiklat} step="1" className="w-full px-4 py-2 border rounded-lg text-sm" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDiklatRows(rows => rows.filter(item => item.key !== row.key))}
+                        aria-label={`Hapus diklat ${index + 1}`}
+                        title="Hapus diklat"
+                        className="px-3 py-2 text-slate-400 hover:text-red-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </section>
+
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                {submitError && <p role="alert" className="mr-auto self-center text-sm text-red-600">{submitError}</p>}
                 <button type="button" onClick={() => setIsOpen(false)} className="px-5 py-2 hover:bg-slate-100 rounded-lg text-sm font-semibold text-slate-600 transition">Batal</button>
                 <button type="submit" disabled={isLoading} className="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50">
                   {isLoading ? 'Menyimpan...' : 'Simpan Perubahan'}

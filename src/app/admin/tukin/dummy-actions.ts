@@ -49,7 +49,7 @@ export async function injectDummyPresensi() {
     }
 
     revalidatePath('/admin/tukin');
-    return { success: true, message: 'Data Dummy Presensi Bulan 10/2026 berhasil disuntik! 💉' };
+    return { success: true, message: 'Data Dummy Presensi Bulan 10/2026 berhasil disuntik!' };
   } catch (error: any) {
     console.error(error);
     return { success: false, message: error.message };

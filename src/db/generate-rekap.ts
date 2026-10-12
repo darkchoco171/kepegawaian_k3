@@ -46,9 +46,9 @@ async function generateRekapBulanan() {
       hariKerja: TOTAL_HARI_KERJA_AGUSTUS,
       totalMenitTerlambat: 0,
       jumlahLupaAbsen: 0, jumlahAlpa: 0, jumlahTdkUpc: 0,
-      cutiSakitBulanIi: false, cutiSakitBulanIii: false, cutiSakitGt3bln: false,
-      ctBesarBulanI: false, ctBesarBulanIi: false, ctBesarBulanIii: false,
-      jumlahCtGugurKandunganGt1bln: 0,
+      cutiSakitBulanII: false, cutiSakitBulanIII: false, cutiSakitGt3Bln: false,
+      ctBesarBulanI: false, ctBesarBulanII: false, ctBesarBulanIII: false,
+      jumlahCtGugurKandunganGt1Bln: 0,
     };
   }
 
@@ -56,14 +56,10 @@ async function generateRekapBulanan() {
     if (!rekapMap[absen.idPegawai]) continue;
     const item = rekapMap[absen.idPegawai];
 
-    if (absen.cekIn) item.jumlahHadirAktual += 1;
-
-    // FIX: Terlambat HANYA WFO & WFH
     if (absen.sistemKerja === 'WFO' || absen.sistemKerja === 'WFH') {
       item.totalMenitTerlambat += Number(absen.terlambat || 0);
     }
 
-    // FIX: Lupa Absen dihitung dari WFO, WFH, DAN Dinas Luar
     if (
       (absen.sistemKerja === 'WFO' || absen.sistemKerja === 'WFH' || absen.sistemKerja === 'Dinas Luar') && 
       (!absen.cekIn || !absen.cekOut)
@@ -80,41 +76,39 @@ async function generateRekapBulanan() {
     const item = rekapMap[cuti.idPegawai];
     
     const tglMulai = new Date(cuti.tglMulai);
-    const startMonth = tglMulai.getMonth() + 1;
-    const startYear = tglMulai.getFullYear();
-    const diffMonths = (TAHUN - startYear) * 12 + (BULAN - startMonth);
+    const diffMonths = (TAHUN - tglMulai.getFullYear()) * 12 + (BULAN - (tglMulai.getMonth() + 1));
     
     if (cuti.jenisCuti === 'Sakit') {
-      if (diffMonths === 1) item.cutiSakitBulanIi = true;
-      if (diffMonths === 2) item.cutiSakitBulanIii = true;
-      if (diffMonths > 2) item.cutiSakitGt3bln = true;
+      if (diffMonths === 1) item.cutiSakitBulanII = true;
+      if (diffMonths === 2) item.cutiSakitBulanIII = true;
+      if (diffMonths > 2) item.cutiSakitGt3Bln = true;
     } else if (cuti.jenisCuti === 'Besar') {
       if (diffMonths === 0) item.ctBesarBulanI = true;
-      if (diffMonths === 1) item.ctBesarBulanIi = true;
-      if (diffMonths === 2) item.ctBesarBulanIii = true;
+      if (diffMonths === 1) item.ctBesarBulanII = true;
+      if (diffMonths === 2) item.ctBesarBulanIII = true;
     } else if (cuti.jenisCuti === 'Gugur Kandungan' && diffMonths > 0) {
-      item.jumlahCtGugurKandunganGt1bln += 1;
+      item.jumlahCtGugurKandunganGt1Bln += 1;
     }
   }
 
   const dataToInsert = Object.values(rekapMap).map(rekap => {
-    // FIX: Pakai parseFloat dan fallback 0 biar gak NaN
+    // RUMUS POTONGAN PRESISI SESUAI EXCEL
     const potMenitTelat = parseFloat(rekap.totalMenitTerlambat || 0) * 0.01;
     const potLupaAbsen = parseFloat(rekap.jumlahLupaAbsen || 0) * 1;
     const potAlpa = parseFloat(rekap.jumlahAlpa || 0) * 3;
-    const potGugurKandungan = parseFloat(rekap.jumlahCtGugurKandunganGt1bln || 0) * 1;
+    const potGugurKandungan = parseFloat(rekap.jumlahCtGugurKandunganGt1Bln || 0) * 1;
     const potTdkUpc = parseFloat(rekap.jumlahTdkUpc || 0) * 3;
 
     let potCuti = 0;
-    if (rekap.cutiSakitBulanIi) potCuti += 50;
-    if (rekap.cutiSakitBulanIii) potCuti += 75;
-    if (rekap.cutiSakitGt3bln) potCuti += 100;
+    if (rekap.cutiSakitBulanII) potCuti += 50;
+    if (rekap.cutiSakitBulanIII) potCuti += 75;
+    if (rekap.cutiSakitGt3Bln) potCuti += 100;
     if (rekap.ctBesarBulanI) potCuti += 50;
-    if (rekap.ctBesarBulanIi) potCuti += 75;
-    if (rekap.ctBesarBulanIii) potCuti += 90;
+    if (rekap.ctBesarBulanII) potCuti += 75;
+    if (rekap.ctBesarBulanIII) potCuti += 90;
 
     const totalPotonganPersen = potMenitTelat + potLupaAbsen + potAlpa + potGugurKandungan + potTdkUpc + potCuti;
-    const persentaseKehadiran = Math.max(0, 30 - (totalPotonganPersen * 0.3));
+    const persentaseKehadiran = Number((30 - (totalPotonganPersen * 0.3)).toFixed(2));
 
     return {
       idPegawai: rekap.idPegawai, bulan: rekap.bulan, tahun: rekap.tahun,
@@ -123,29 +117,24 @@ async function generateRekapBulanan() {
       jumlahLupaAbsen: rekap.jumlahLupaAbsen,
       jumlahAlpa: rekap.jumlahAlpa,
       jumlahTdkUpc: rekap.jumlahTdkUpc,
-      cutiSakitBulanIi: rekap.cutiSakitBulanIi,
-      cutiSakitBulanIii: rekap.cutiSakitBulanIii,
-      cutiSakitGt3bln: rekap.cutiSakitGt3bln,
+      cutiSakitBulanII: rekap.cutiSakitBulanII,
+      cutiSakitBulanIII: rekap.cutiSakitBulanIII,
+      cutiSakitGt3Bln: rekap.cutiSakitGt3Bln,
       ctBesarBulanI: rekap.ctBesarBulanI,
-      ctBesarBulanIi: rekap.ctBesarBulanIi,
-      ctBesarBulanIii: rekap.ctBesarBulanIii,
-      jumlahCtGugurKandunganGt1bln: rekap.jumlahCtGugurKandunganGt1bln,
+      ctBesarBulanII: rekap.ctBesarBulanII,
+      ctBesarBulanIII: rekap.ctBesarBulanIII,
+      jumlahCtGugurKandunganGt1Bln: rekap.jumlahCtGugurKandunganGt1Bln,
       persentasePotongan: totalPotonganPersen.toFixed(4),
-      persentaseKehadiran: persentaseKehadiran.toFixed(4),
-      nominalKehadiran: "0.00",
-      jumlahPotonganKehadiran: "0.00"
+      persentaseKehadiran: persentaseKehadiran.toString(),
+      nominalKehadiran: "0", 
+      jumlahPotonganKehadiran: "0"
     };
   });
 
   if (dataToInsert.length > 0) {
-    try {
-      await db.delete(rekapPresensiBulanan)
-        .where(and(eq(rekapPresensiBulanan.bulan, BULAN), eq(rekapPresensiBulanan.tahun, TAHUN)));
-      await db.insert(rekapPresensiBulanan).values(dataToInsert);
-      console.log("Berhasil generate rekap presensi bulanan!");
-    } catch (error) {
-      console.error("Gagal insert rekap:", error);
-    }
+    await db.delete(rekapPresensiBulanan).where(and(eq(rekapPresensiBulanan.bulan, BULAN), eq(rekapPresensiBulanan.tahun, TAHUN)));
+    await db.insert(rekapPresensiBulanan).values(dataToInsert);
+    console.log("Berhasil generate rekap presensi bulanan secara presisi!");
   }
   process.exit(0);
 }

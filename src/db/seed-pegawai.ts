@@ -9,6 +9,15 @@ import {
 } from './schema';
 import * as xlsx from 'xlsx';
 
+// --- FUNGSI BUAT BIKIN NAMA TITLE CASE ---
+function formatNamaTitleCase(nama: string | null) {
+  if (!nama) return '';
+  return nama
+    .toLowerCase() // Kecilin semua huruf dulu
+    .replace(/\b(\w)/g, (hurufAwal) => hurufAwal.toUpperCase()); // Gedein huruf awal tiap kata
+}
+// ----------------------------------------------
+
 function parsePendidikan(text: string | null) {
   if (!text || text === "-" || text.trim() === "") return null;
   const cleanText = text.trim();
@@ -71,14 +80,17 @@ async function seedPegawai() {
       statusNikahClean = rawNikah.includes('belum') ? 'Belum Kawin' : 'Kawin';
     }
 
+    // Eksekusi Title Case di sini
+    const namaEstetik = formatNamaTitleCase(String(row.nama_lengkap).trim());
+
     try {
       const [newPegawai] = await db.insert(pegawai).values({
         idJabatan,
         idGolongan,
         jabatanTim: row.jabatan_tim ? String(row.jabatan_tim).trim() : null,
         nip: String(row.nip).trim(),
-        namaLengkap: String(row.nama_lengkap).trim(),
-        tempatLahir: row.tempat_lahir ? String(row.tempat_lahir).trim() : null,
+        namaLengkap: namaEstetik, // Mba Nisa pasti hepi liat ini!
+        tempatLahir: row.tempat_lahir ? formatNamaTitleCase(String(row.tempat_lahir).trim()) : null, // Sekalian tempat lahir juga biar rapi
         tglLahir: row.tgl_lahir ? new Date(row.tgl_lahir).toISOString().split('T')[0] : null,
         agama: row.agama ? String(row.agama).trim() : null,
         jenisKelamin: row.jenis_kelamin ? (String(row.jenis_kelamin).trim().toUpperCase().charAt(0) as 'L' | 'P') : null,
@@ -117,7 +129,7 @@ async function seedPegawai() {
         }
       }
 
-      console.log(`[Baris ${rowNum}] BERHASIL: ${row.nama_lengkap}`);
+      console.log(`[Baris ${rowNum}] BERHASIL: ${namaEstetik}`);
       successCount++;
 
     } catch (error) {

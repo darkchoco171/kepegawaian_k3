@@ -13,7 +13,6 @@ export default function KalkulasiButton({ bulan, tahun }: { bulan: number; tahun
     const res = await kalkulasiTukinMassal(bulan, tahun);
     setLoading(false);
     
-    // Lu bisa ganti alert ini pakai toast (sonner / react-hot-toast) kalau lu pakai di project lu
     if (res.status === 'success') {
       alert(res.message); 
     } else {

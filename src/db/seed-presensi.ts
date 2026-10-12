@@ -47,7 +47,7 @@ function formatTime(excelTime: any): string | null {
   if (match) {
     const parts = match[1].split(':');
     let h = parseInt(parts[0]);
-    if (h >= 24) return null; // FIX 1 juga
+    if (h >= 24) return null;
     let result = `${String(h).padStart(2, '0')}:${parts[1].padStart(2, '0')}:${parts[2] ? parts[2].padStart(2, '0') : '00'}`;
     if (result === '00:00:00') return null; 
     return result;

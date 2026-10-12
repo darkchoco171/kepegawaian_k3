@@ -167,6 +167,9 @@ export default async function PresensiPage(
                     item.sistemKerja === 'Alpa' ? 'bg-red-50 text-red-600 border-red-200' :
                     item.sistemKerja === 'Cuti' ? 'bg-purple-50 text-purple-600 border-purple-200' :
                     'bg-slate-50 text-slate-600 border-slate-200';
+                  const keterangan = item.statusAnomali === 'LUPA_ABSEN'
+                    ? 'Lupa Absen'
+                    : item.statusAnomali?.replaceAll('_', ' ') || '-';
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-50 transition">
@@ -182,8 +185,8 @@ export default async function PresensiPage(
                       </td>
                       <td className="py-3 px-6 font-mono text-slate-700">{item.cekIn || '-'}</td>
                       <td className="py-3 px-6 font-mono text-slate-700">{item.cekOut || '-'}</td>
-                      <td className="py-3 px-6 text-slate-500 max-w-[150px] truncate" title={item.statusAnomali || ''}>
-                        {item.statusAnomali || '-'}
+                      <td className="py-3 px-6 text-slate-500 max-w-[150px] truncate" title={keterangan}>
+                        {keterangan}
                       </td>
                     </tr>
                   );

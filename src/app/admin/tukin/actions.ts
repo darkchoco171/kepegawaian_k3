@@ -14,7 +14,7 @@ export async function kalkulasiTukinMassal(bulan: number, tahun: number) {
     );
 
     if (listKinerja.length === 0) {
-      return { status: 'error', message: 'Data kinerja bulan ini kosong. Input dulu di Manajemen Kinerja!' };
+      return { status: 'error', message: 'Data kinerja bulan ini kosong. Silahkan input dahulu di Manajemen Kinerja!' };
     }
 
     // 2. Tarik semua rekap presensi bulan ini

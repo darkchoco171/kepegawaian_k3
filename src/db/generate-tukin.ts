@@ -12,7 +12,6 @@ async function generateTukin() {
   const dataRekap = await db.select({
     idRekap: rekapPresensiBulanan.id,
     idPegawai: pegawai.id,
-    nama: pegawai.namaLengkap,
     persentasePotongan: rekapPresensiBulanan.persentasePotongan,
     nominalDasar: masterKelasJabatan.baseTukin,
     idJabatan: masterJabatan.id,
@@ -23,76 +22,77 @@ async function generateTukin() {
   .innerJoin(masterJabatan, eq(pegawai.idJabatan, masterJabatan.id))
   .innerJoin(masterKelasJabatan, eq(masterJabatan.idKelasJabatan, masterKelasJabatan.id))
   .leftJoin(masterPangkatGolongan, eq(pegawai.idGolongan, masterPangkatGolongan.id))
-  .where(
-    and(
-      eq(rekapPresensiBulanan.bulan, BULAN),
-      eq(rekapPresensiBulanan.tahun, TAHUN)
-    )
-  );
+  .where(and(eq(rekapPresensiBulanan.bulan, BULAN), eq(rekapPresensiBulanan.tahun, TAHUN)));
 
-  console.log(`Dapat ${dataRekap.length} data rekap bersih. Menghitung Tukin...`);
+  // Ambil histori Kinerja sebelumnya biar nggak keriset
+  const existingTukin = await db.select().from(tukinBulanan).where(and(eq(tukinBulanan.bulan, BULAN), eq(tukinBulanan.tahun, TAHUN)));
+  const mapTukin = new Map(existingTukin.map(t => [t.idPegawai, t]));
 
-  const tukinToInsert = [];
+  let successCount = 0;
 
   for (const data of dataRekap) {
-    // FIX: parseFloat lebih aman buat DB string, ada fallback 0
     let nominalDasar = parseFloat(data.nominalDasar as string) || 0;
     let persenPotonganBulanan = parseFloat(data.persentasePotongan as string) || 0;
 
-    // FIX: Kalau ada NaN dipaksa jadi 0
-    if (isNaN(nominalDasar)) nominalDasar = 0;
-    if (isNaN(persenPotonganBulanan)) persenPotonganBulanan = 0;
-
-    const persentaseKehadiran = (30 / 100) - (persenPotonganBulanan / 100) * (30 / 100);
-    const nominalKehadiran = Math.max(0, persentaseKehadiran * nominalDasar);
+    // RUMUS KEHADIRAN (30%) MBA NISA
+    const persentaseKehadiranDesimal = (30 / 100) - (persenPotonganBulanan / 100) * (30 / 100);
+    const nominalKehadiran = Math.max(0, persentaseKehadiranDesimal * nominalDasar);
     const maksKehadiran = (30 / 100) * nominalDasar;
     const jumlahPotonganKehadiran = maksKehadiran - nominalKehadiran;
 
-    const capaianKinerja = 'Baik';
-    const persentaseKinerja = 1.00;
-    const nominalKinerja = nominalDasar * (70 / 100);
+    // TARIK NILAI KINERJA EKSISTING ATAU DEFAULT 100%
+    const prevTukin = mapTukin.get(data.idPegawai);
+    const capaianKinerja = prevTukin?.capaianKinerja || 'Baik';
+    let rawPersenKinerja = prevTukin ? parseFloat(prevTukin.persentaseKinerja as string) : 0.70;
+    if (rawPersenKinerja === 1 || isNaN(rawPersenKinerja)) {
+      rawPersenKinerja = 0.70;
+    }
+    const persentaseKinerja = rawPersenKinerja;
+    const hasilKerja = prevTukin?.hasilKerja || 'Sesuai Ekspektasi';
+    const perilakuKerja = prevTukin?.perilakuKerja || 'Sesuai Ekspektasi';
+
+    const nominalKinerja = nominalDasar * persentaseKinerja;
 
     const statusPegawai = (data.jenisKepegawaian || "").toUpperCase();
-    const isCpnsCpppk = statusPegawai.includes("CPNS") || statusPegawai.includes("CPPPK");
+    const isPnsPppk = statusPegawai.includes("PNS") || statusPegawai.includes("PPPK");
 
     let totalDibayarkan = nominalKehadiran + nominalKinerja;
-    if (isCpnsCpppk) {
-      totalDibayarkan = totalDibayarkan * (80 / 100);
-    }
+    if (isPnsPppk) totalDibayarkan = totalDibayarkan * (80 / 100);
 
-    if (isNaN(totalDibayarkan)) totalDibayarkan = 0;
-
-    tukinToInsert.push({
+    // EKSEKUSI UPSERT
+    await db.insert(tukinBulanan).values({
       idPegawai: data.idPegawai,
       idMasterJabatan: data.idJabatan, 
       idRekapPresensiBulanan: data.idRekap,
       bulan: BULAN, tahun: TAHUN,
-      nominalDasar: nominalDasar.toFixed(2),
-      hasilKerja: 'Sesuai Ekspektasi',
-      perilakuKerja: 'Sesuai Ekspektasi',
+      nominalDasar: nominalDasar.toString(),
+      hasilKerja: hasilKerja,
+      perilakuKerja: perilakuKerja,
       capaianKinerja: capaianKinerja,
       persentaseKinerja: persentaseKinerja.toFixed(4),
-      nominalKinerja: nominalKinerja.toFixed(2),
-      dibayarkan: totalDibayarkan.toFixed(2),
+      nominalKinerja: Math.round(nominalKinerja).toString(),
+      dibayarkan: totalDibayarkan.toString(),
+    }).onConflictDoUpdate({
+      target: [tukinBulanan.idPegawai, tukinBulanan.bulan, tukinBulanan.tahun],
+      set: {
+        idRekapPresensiBulanan: data.idRekap,
+        nominalDasar: nominalDasar.toString(),
+        nominalKinerja: nominalKinerja.toString(),
+        dibayarkan: totalDibayarkan.toString(),
+        updatedAt: new Date(),
+      }
     });
     
+    // UPDATE REKAP PRESENSI 
     await db.update(rekapPresensiBulanan).set({
-      nominalKehadiran: nominalKehadiran.toFixed(2),
-      jumlahPotonganKehadiran: jumlahPotonganKehadiran.toFixed(2)
+      nominalKehadiran: nominalKehadiran.toString(),
+      jumlahPotonganKehadiran: jumlahPotonganKehadiran.toString()
     }).where(eq(rekapPresensiBulanan.id, data.idRekap));
+
+    successCount++;
   }
 
-  if (tukinToInsert.length > 0) {
-    try {
-      await db.delete(tukinBulanan)
-        .where(and(eq(tukinBulanan.bulan, BULAN), eq(tukinBulanan.tahun, TAHUN)));
-      await db.insert(tukinBulanan).values(tukinToInsert);
-      console.log(`Berhasil nge-generate ${tukinToInsert.length} data Tukin!`);
-    } catch (error) {
-      console.error("Gagal insert tukin:", error);
-    }
-  }
-
+  console.log(`Berhasil nge-generate & update ${successCount} data Tukin secara presisi!`);
   process.exit(0);
 }
 

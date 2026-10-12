@@ -153,7 +153,7 @@ export async function prosesImportPresensiExcel(dataExcel: any[], bulanTarget: n
           totalMenitTerlambat: dataRekap.totalMenitTelat,
           jumlahLupaAbsen: 0,
           jumlahAlpa: 0,
-          jumlahCtGugurKandunganGt1Bln: 0, // Dikosongkan aja kalau dari Excel nggak ada
+          jumlahCtGugurKandunganGt1Bln: 0,
           persentasePotongan: totalPotongan.toFixed(2),
           persentaseKehadiran: persentaseKehadiranNum.toFixed(2),
           nominalKehadiran: nominalKehadiranNum.toFixed(2),
@@ -168,7 +168,7 @@ export async function prosesImportPresensiExcel(dataExcel: any[], bulanTarget: n
             persentaseKehadiran: persentaseKehadiranNum.toFixed(2),
             nominalKehadiran: nominalKehadiranNum.toFixed(2),
             jumlahPotonganKehadiran: potonganKehadiranNum.toFixed(2),
-            // updatedAt: new Date(),
+            updatedAt: new Date(),
           },
         });
         
@@ -181,7 +181,7 @@ export async function prosesImportPresensiExcel(dataExcel: any[], bulanTarget: n
     
     return { 
       status: 'success', 
-      message: `Mantap, Sal! Berhasil ngerekap ${dataDiproses} baris absen buat ${successCount} pegawai. Duit Tukin udah auto-sinkron!` 
+      message: `Berhasil ngerekap ${dataDiproses} baris absen buat ${successCount} pegawai.` 
     };
   } catch (error: any) {
     return { status: 'error', message: error.message };

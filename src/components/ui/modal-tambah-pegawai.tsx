@@ -82,7 +82,7 @@ export default function ModalTambahPegawai() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Sub Bagian / Tim</label>
-                  <select name="jabatanTim" required className="w-full px-4 py-2 border rounded-lg text-sm">
+                  <select name="jabatanTim" className="w-full px-4 py-2 border rounded-lg text-sm">
                     <option value="">-- Pilih --</option>
                     {DAFTAR_TIM.map(tim => <option key={tim} value={tim}>{tim}</option>)}
                   </select>
