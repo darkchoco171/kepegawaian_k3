@@ -113,7 +113,7 @@ export const pegawai = pgTable('pegawai', {
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
-  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id),
+  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id, { onDelete: 'cascade' }),
   password: text('password').notNull(), // hashed, login pakai NIP (ambil dr relasi pegawai) + password ini
   role: roleEnum('role').notNull().default('admin'),
   isActive: boolean('is_active').notNull().default(true),
@@ -125,7 +125,7 @@ export const users = pgTable('users', {
 
 export const riwayatPendidikan = pgTable('riwayat_pendidikan', {
   id: uuid('id').primaryKey().defaultRandom(),
-  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id),
+  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id, { onDelete: 'cascade' }),
   jenjang: text('jenjang'),
   namaInstitusi: text('nama_institusi'),
   programStudi: text('program_studi'),
@@ -133,7 +133,7 @@ export const riwayatPendidikan = pgTable('riwayat_pendidikan', {
 
 export const riwayatDiklat = pgTable('riwayat_diklat', {
   id: uuid('id').primaryKey().defaultRandom(),
-  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id),
+  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id, { onDelete: 'cascade' }),
   namaDiklat: text('nama_diklat').notNull(),
   tahunDiklat: integer('tahun_diklat'),
 });
@@ -144,7 +144,7 @@ export const riwayatDiklat = pgTable('riwayat_diklat', {
 
 export const presensiHarian = pgTable('presensi_harian', {
   id: uuid('id').primaryKey().defaultRandom(),
-  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id),
+  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id, { onDelete: 'cascade' }),
   tgl: date('tgl').notNull(),
   sistemKerja: sistemKerjaEnum('sistem_kerja').notNull(),
   cekIn: time('cek_in'),
@@ -171,7 +171,7 @@ export const presensiHarian = pgTable('presensi_harian', {
 
 export const pengajuanCuti = pgTable('pengajuan_cuti', {
   id: uuid('id').primaryKey().defaultRandom(),
-  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id),
+  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id, { onDelete: 'cascade' }),
   jenisCuti: jenisCutiEnum('jenis_cuti').notNull(),
   tglMulai: date('tgl_mulai').notNull(),
   tglSelesai: date('tgl_selesai').notNull(),
@@ -194,7 +194,7 @@ export const pengajuanCuti = pgTable('pengajuan_cuti', {
 
 export const rekapPresensiBulanan = pgTable('rekap_presensi_bulanan', {
   id: uuid('id').primaryKey().defaultRandom(),
-  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id),
+  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id, { onDelete: 'cascade' }),
   bulan: integer('bulan').notNull(),
   tahun: integer('tahun').notNull(),
   hariKerja: integer('hari_kerja').notNull().default(0),
@@ -222,7 +222,7 @@ export const rekapPresensiBulanan = pgTable('rekap_presensi_bulanan', {
 
 export const tukinBulanan = pgTable('tukin_bulanan', {
   id: uuid('id').primaryKey().defaultRandom(),
-  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id),
+  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id, { onDelete: 'cascade' }),
   // snapshot jabatan saat itu -- jabatan pegawai bisa berubah, histori tukin ttp
   // mencatat jabatan yg berlaku waktu itu
   idMasterJabatan: uuid('id_master_jabatan').notNull().references(() => masterJabatan.id),
@@ -246,7 +246,7 @@ export const tukinBulanan = pgTable('tukin_bulanan', {
 
 export const riwayatAngkaKredit = pgTable('riwayat_angka_kredit', {
   id: uuid('id').primaryKey().defaultRandom(),
-  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id),
+  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id, { onDelete: 'cascade' }),
   // golongan pegawai pada saat penilaian -- dipakai cari target AK jenjang berikutnya
   idMasterPangkatGolongan: uuid('id_master_pangkat_golongan').references(() => masterPangkatGolongan.id),
   tahunPenilaian: integer('tahun_penilaian').notNull(),

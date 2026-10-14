@@ -4,25 +4,7 @@ import React from 'react';
 import { Search } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ModalTambahPegawai from '@/components/ui/modal-tambah-pegawai';
-
-const DAFTAR_TIM = [
-    "Akreditasi dan Pengembangan Kelembagaan K3 Bidang Kesehatan Kerja",
-    "Akreditasi dan Pengembangan Kelembagaan K3 Bidang Teknik Kesehatan Kerja",
-    "Evaluasi dan Pengembangan Manajemen Kelembagaan K3 Bidang Pembinaan Kesehatan Kerja",
-    "Sistem Manajemen Mutu K3",
-    "Akreditasi dan Standardisasi Lembaga Audit Sistem Manajemen Mutu K3",
-    "Evaluasi Audit Sistem Manajemen Mutu K3",
-    "Akreditasi dan Pengembangan Kelembagaan K3 Bidang Keselamatan Kerja",
-    "Akreditasi dan Pengembangan Kelembagaan K3 Bidang Teknik Keselamatan Kerja",
-    "Akreditasi dan Pengembangan Kelembagaan K3 Bidang Pembinaan Keselamatan Kerja",
-    "Standardisasi dan Pengembangan Personel K3",
-    "Standardisasi, Evaluasi dan Pengembangan Personel K3 Bidang Mekanik",
-    "Standardisasi, Evaluasi, dan Pengembangan Personel K3 Bidang Teknik dan Lingkungan Kerja",
-    "Dit. Wasuji",
-    "Dit. Sistem",
-    "Dit. Sesditjen Binwasnaker",
-    "Tata Usaha"
-    ];
+import { DAFTAR_TIM } from '@/lib/constants';
 
 export default function PegawaiToolbar() {
   const router = useRouter();

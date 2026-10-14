@@ -19,8 +19,14 @@ export default function ModalTambahCuti({ daftarPegawai }: { daftarPegawai: any[
     e.preventDefault();
     setIsLoading(true);
     const formData = new FormData(e.currentTarget);
-    await createCuti(formData);
+    const res = await createCuti(formData);
     setIsLoading(false);
+
+    if (res && !res.success) {
+      alert(res.message);
+      return;
+    }
+
     setIsOpen(false);
     setSearchPegawai(''); // Reset search
   };

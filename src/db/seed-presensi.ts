@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { db } from './index'; 
 import { pegawai, presensiHarian, pengajuanCuti } from './schema';
 import * as xlsx from 'xlsx';
+import { eq, and, lte, gte } from 'drizzle-orm';
 
 // ==========================================
 // # HELPER FUNCTIONS (ANTI-ERROR)
@@ -57,21 +58,80 @@ function formatTime(excelTime: any): string | null {
 
 function formatDate(excelDate: any): string | null {
   if (!excelDate) return null;
-  if (excelDate instanceof Date) {
-    const d = new Date(excelDate.getTime() - (excelDate.getTimezoneOffset() * 60000));
-    return d.toISOString().split('T')[0];
-  }
-  if (typeof excelDate === 'string') {
-    const match = excelDate.match(/(\d{4}-\d{2}-\d{2})/);
-    if (match) return match[1];
-    const parsed = new Date(excelDate);
-    if (!isNaN(parsed.getTime())) {
-        const year = parsed.getFullYear();
-        const month = String(parsed.getMonth() + 1).padStart(2, '0');
-        const day = String(parsed.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+
+  // 1. Jika bertipe number (Excel serial date code, misal 46237)
+  if (typeof excelDate === 'number') {
+    try {
+      const dateObj = xlsx.SSF.parse_date_code(excelDate);
+      if (dateObj) {
+        const y = dateObj.y;
+        const m = String(dateObj.m).padStart(2, '0');
+        const d = String(dateObj.d).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+    } catch {
+      // fallback jika gagal parse_date_code
     }
   }
+
+  // 2. Jika bertipe Date (karena cellDates: true)
+  if (excelDate instanceof Date) {
+    if (isNaN(excelDate.getTime())) return null;
+    // Tambahkan buffer 12 jam (tengah hari) agar tidak terpeleset ke hari sebelumnya
+    // akibat timezone UTC vs WIB maupun floating-point detik dari Excel
+    const safeDate = new Date(excelDate.getTime() + (12 * 60 * 60 * 1000));
+    return safeDate.toISOString().split('T')[0];
+  }
+
+  // 3. Jika bertipe string
+  if (typeof excelDate === 'string') {
+    const trimmed = excelDate.trim();
+
+    // Format ISO: YYYY-MM-DD
+    const isoMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (isoMatch) {
+      return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+    }
+
+    // Format DD/MM/YYYY atau DD-MM-YYYY (seperti di bar fx Excel: 03/08/2026)
+    const dmyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+    if (dmyMatch) {
+      const d = dmyMatch[1].padStart(2, '0');
+      const m = dmyMatch[2].padStart(2, '0');
+      const y = dmyMatch[3];
+      return `${y}-${m}-${d}`;
+    }
+
+    // Format DD-MMM-YY atau DD-MMM-YYYY (seperti tampilan custom Excel: 03-Aug-26)
+    const dMmmMatch = trimmed.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
+    if (dMmmMatch) {
+      const monthMap: Record<string, string> = {
+        jan: '01', feb: '02', mar: '03', apr: '04', mei: '05', may: '05',
+        jun: '06', jul: '07', agu: '08', aug: '08', sep: '09', okt: '10', oct: '10',
+        nov: '11', des: '12', dec: '12'
+      };
+      const d = dMmmMatch[1].padStart(2, '0');
+      const mStr = dMmmMatch[2].toLowerCase();
+      const m = monthMap[mStr];
+      let y = dMmmMatch[3];
+      if (y.length === 2) {
+        y = Number(y) < 70 ? `20${y}` : `19${y}`;
+      }
+      if (m) {
+        return `${y}-${m}-${d}`;
+      }
+    }
+
+    // Fallback Date parser bawaan
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+      const year = parsed.getFullYear();
+      const month = String(parsed.getMonth() + 1).padStart(2, '0');
+      const day = String(parsed.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  }
+
   return null;
 }
 
@@ -155,19 +215,33 @@ async function seedPresensi() {
     const isLupaAbsen = (sistemKerja === 'WFO' || sistemKerja === 'WFH') && (!cekIn || !cekOut);
 
     let idCuti = null;
-    if (sistemKerja === 'Cuti' && keteranganCti) {
+    if (sistemKerja === 'Cuti') {
       try {
-        const jenisCuti = mapJenisCuti(keteranganCti);
-        const [newCuti] = await db.insert(pengajuanCuti).values({
-          idPegawai: currentIdPegawai,
-          jenisCuti,
-          tglMulai: tanggalString,
-          tglSelesai: tanggalString,
-          jumlahHari: 1,
-          alasan: `Input via Seeder - ${keteranganCti}`,
-          statusPengajuan: 'Disetujui',
-        }).returning({ id: pengajuanCuti.id });
-        idCuti = newCuti.id;
+        // Cek apakah pegawai sudah memiliki cuti yang mencakup tanggal ini
+        const existingCuti = await db.query.pengajuanCuti.findFirst({
+          where: and(
+            eq(pengajuanCuti.idPegawai, currentIdPegawai),
+            lte(pengajuanCuti.tglMulai, tanggalString),
+            gte(pengajuanCuti.tglSelesai, tanggalString)
+          )
+        });
+
+        if (existingCuti) {
+          // Gunakan ID cuti yang sudah ada agar tidak duplikat
+          idCuti = existingCuti.id;
+        } else if (keteranganCti) {
+          const jenisCuti = mapJenisCuti(keteranganCti);
+          const [newCuti] = await db.insert(pengajuanCuti).values({
+            idPegawai: currentIdPegawai,
+            jenisCuti,
+            tglMulai: tanggalString,
+            tglSelesai: tanggalString,
+            jumlahHari: 1,
+            alasan: `Input via Seeder - ${keteranganCti}`,
+            statusPengajuan: 'Disetujui',
+          }).returning({ id: pengajuanCuti.id });
+          idCuti = newCuti.id;
+        }
       } catch (cutiErr) {
          // Abaikan error cuti
       }

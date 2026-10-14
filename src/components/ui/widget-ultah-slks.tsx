@@ -18,17 +18,34 @@ export default async function WidgetUltahSlks() {
   const currentYear = today.getFullYear();
   const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
-  // --- LOGIKA 1: FILTER ULTAH BULAN INI (DITAMBAH TANGGAL LENGKAP) ---
+  // --- LOGIKA 1: FILTER ULTAH BULAN INI (EKSTRAK DARI 8 DIGIT NIP) ---
   const ultahBulanIni = dataPegawai
-    .filter(p => {
-      if (!p.tglLahir) return false;
-      return new Date(p.tglLahir).getMonth() === currentMonth;
-    })
+    // 1. Buang dulu pegawai yang NIP-nya kurang dari 18 digit dari awal
+    .filter(p => p.nip && p.nip.replace(/\s/g, '').length >= 18)
+    // 2. Ekstrak data tanggal lahir
     .map(p => {
-      const tgl = new Date(p.tglLahir!);
-      const umurNanti = currentYear - tgl.getFullYear();
-      const tglLengkap = `${tgl.getDate()} ${namaBulan[tgl.getMonth()]} ${tgl.getFullYear()}`;
-      return { ...p, tglInt: tgl.getDate(), umur: umurNanti, tglLengkap };
+      // Pake "!" (Non-null assertion) karena kita udah pastiin NIP-nya ada di filter atas
+      const cleanNip = p.nip!.replace(/\s/g, ''); 
+      
+      const thnLahir = parseInt(cleanNip.substring(0, 4));
+      const blnLahir = parseInt(cleanNip.substring(4, 6)) - 1; 
+      const tglLahir = parseInt(cleanNip.substring(6, 8));
+
+      return { ...p, cleanNip, thnLahir, blnLahir, tglLahir };
+    })
+    // 3. Ambil yang bulannya cocok sama bulan ini
+    .filter(p => p.blnLahir === currentMonth)
+    // 4. Proses umur & teks tampilan (TypeScript udah ga bakal merah lagi di sini)
+    .map(p => {
+      const umurNanti = currentYear - p.thnLahir;
+      const tglLengkap = `${p.tglLahir} ${namaBulan[currentMonth]} ${p.thnLahir}`;
+      
+      return { 
+        ...p, 
+        tglInt: p.tglLahir, 
+        umur: umurNanti, 
+        tglLengkap 
+      };
     })
     .sort((a, b) => a.tglInt - b.tglInt);
 
@@ -86,7 +103,6 @@ export default async function WidgetUltahSlks() {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-800">{p.namaLengkap}</p>
-                      {/* Tanggal ultah lengkap muncul di sini */}
                       <p className="text-[10px] text-slate-500">{p.tglLengkap} • NIP. {p.nip}</p>
                     </div>
                   </div>

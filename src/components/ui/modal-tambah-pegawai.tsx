@@ -3,27 +3,8 @@
 import React, { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { simpanPegawaiBaru } from '@/app/admin/pegawai/actions';
-
-const DAFTAR_TIM = [
-    "Akreditasi dan Pengembangan Kelembagaan K3 Bidang Kesehatan Kerja",
-    "Akreditasi dan Pengembangan Kelembagaan K3 Bidang Teknik Kesehatan Kerja",
-    "Evaluasi dan Pengembangan Manajemen Kelembagaan K3 Bidang Pembinaan Kesehatan Kerja",
-    "Sistem Manajemen Mutu K3",
-    "Akreditasi dan Standardisasi Lembaga Audit Sistem Manajemen Mutu K3",
-    "Evaluasi Audit Sistem Manajemen Mutu K3",
-    "Akreditasi dan Pengembangan Kelembagaan K3 Bidang Keselamatan Kerja",
-    "Akreditasi dan Pengembangan Kelembagaan K3 Bidang Teknik Keselamatan Kerja",
-    "Akreditasi dan Pengembangan Kelembagaan K3 Bidang Pembinaan Keselamatan Kerja",
-    "Standardisasi dan Pengembangan Personel K3",
-    "Standardisasi, Evaluasi dan Pengembangan Personel K3 Bidang Mekanik",
-    "Standardisasi, Evaluasi, dan Pengembangan Personel K3 Bidang Teknik dan Lingkungan Kerja",
-    "Dit. Wasuji",
-    "Dit. Sistem",
-    "Dit. Sesditjen Binwasnaker",
-    "Tata Usaha"
-    ];
-const DAFTAR_STATUS = ["Aktif", "Cuti", "Tugas Belajar"];
-const DAFTAR_AGAMA = ["Islam", "Kristen Protestan", "Katolik", "Hindu", "Buddha", "Konghucu"];
+import { DAFTAR_STATUS, DAFTAR_AGAMA } from '@/lib/constants';
+import ComboboxTim from '@/components/ui/combobox-tim';
 
 export default function ModalTambahPegawai() {
   const [isOpen, setIsOpen] = useState(false);
@@ -82,10 +63,7 @@ export default function ModalTambahPegawai() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Sub Bagian / Tim</label>
-                  <select name="jabatanTim" className="w-full px-4 py-2 border rounded-lg text-sm">
-                    <option value="">-- Pilih --</option>
-                    {DAFTAR_TIM.map(tim => <option key={tim} value={tim}>{tim}</option>)}
-                  </select>
+                  <ComboboxTim name="jabatanTim" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Status Kepegawaian</label>

@@ -2,6 +2,7 @@ import React from 'react';
 import { CalendarDays, Plus, CheckCircle2, Clock, XCircle, FileText } from 'lucide-react';
 import { db } from '@/lib/db';
 import { pengajuanCuti, pegawai } from '@/db/schema';
+import {getSisaCutiPegawai} from '@/app/admin/cuti/hitung-cuti';
 import { count, eq, ilike, and, desc } from 'drizzle-orm';
 import ModalTambahCuti from '@/components/ui/modal-tambah-cuti';
 import CutiToolbar from '@/components/ui/cuti-toolbar';
@@ -28,8 +29,9 @@ export default async function CutiPage(
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
   // --- TARIK DATA (PAGINATION) ---
-  const dataCuti = await db.select({
+  const rawDataCuti = await db.select({
       id: pengajuanCuti.id,
+      idPegawai: pengajuanCuti.idPegawai,
       jenisCuti: pengajuanCuti.jenisCuti,
       tglMulai: pengajuanCuti.tglMulai,
       tglSelesai: pengajuanCuti.tglSelesai,
@@ -69,6 +71,14 @@ export default async function CutiPage(
     params.set('page', targetPage.toString());
     return `/admin/cuti?${params.toString()}`;
   };
+
+  // Pasang sisa cuti ke setiap baris data
+  const dataCuti = await Promise.all(
+    rawDataCuti.map(async (item) => {
+      const sisa = await getSisaCutiPegawai(item.idPegawai);
+      return { ...item, sisaCuti: sisa.totalSisa };
+    })
+  );
 
   return (
     <div className="space-y-6">
@@ -149,6 +159,9 @@ export default async function CutiPage(
                       <td className="py-3 px-6">
                         <p className="font-bold text-slate-800">{item.pegawai?.namaLengkap || 'Pegawai Dihapus'}</p>
                         <p className="text-[10px] text-slate-500">{item.pegawai?.nip || '-'}</p>
+                        <span className="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
+                          Sisa Cuti: {item.sisaCuti} Hari
+                        </span>
                       </td>
                       <td className="py-3 px-6 font-medium text-slate-700">{item.jenisCuti}</td>
                       <td className="py-3 px-6 text-slate-600 text-xs">{item.tglMulai} s/d {item.tglSelesai}</td>

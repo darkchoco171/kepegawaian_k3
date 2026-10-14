@@ -52,23 +52,22 @@ export default function PresensiToolbar({ bulan, tahun }: { bulan: number; tahun
     if (!file) return;
 
     setLoadingImport(true);
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: 'binary' });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const data = XLSX.utils.sheet_to_json(ws);
-      
-      // Lempar data ke Server Action beserta bulan & tahun yang lagi aktif
-      const res = await prosesImportPresensiExcel(data, bulan, tahun);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bulan', String(bulan));
+      formData.append('tahun', String(tahun));
+
+      // Lempar FormData langsung ke Server Action
+      const res = await prosesImportPresensiExcel(formData);
       alert(res.message);
-      
+    } catch (err: any) {
+      alert(err?.message || 'Gagal memproses file presensi');
+    } finally {
       setLoadingImport(false);
-      if (fileInputRef.current) fileInputRef.current.value = ''; 
+      if (fileInputRef.current) fileInputRef.current.value = '';
       router.refresh();
-    };
-    reader.readAsBinaryString(file);
+    }
   };
 
   return (
