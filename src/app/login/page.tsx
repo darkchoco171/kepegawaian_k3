@@ -57,7 +57,7 @@ export default function LoginPage() {
             <Shield className="text-white w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-white font-bold text-sm tracking-widest">SIMPEG K3</h1>
+            <h1 className="text-white font-bold text-sm tracking-widest">SIMPEG Kelembagaan K3</h1>
             <p className="text-blue-200 text-[10px]">Kementerian Ketenagakerjaan Republik Indonesia</p>
           </div>
         </div>
@@ -117,7 +117,7 @@ export default function LoginPage() {
             {/* Input NIP */}
             <div>
               <label className="block text-slate-700 text-xs font-bold mb-2">NIP</label>
-              <input
+              <input name="nip"
                 type="text"
                 value={nip}
                 onChange={(e) => {
@@ -137,14 +137,13 @@ export default function LoginPage() {
             <div>
               <label className="block text-slate-700 text-xs font-bold mb-2">Kata sandi</label>
               <div className="relative">
-                <input
+                <input name="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition pr-16"
-                  required
-                />
+                  required/>
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -159,8 +158,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading || nip.length < 18}
-              className="w-full bg-[#0b3b7c] hover:bg-blue-900 text-white font-bold py-3 rounded-lg text-sm transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-            >
+              className="w-full bg-[#0b3b7c] hover:bg-blue-900 text-white font-bold py-3 rounded-lg text-sm transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed mt-2">
               {isLoading ? "Memproses..." : "Masuk"}
             </button>
           </form>

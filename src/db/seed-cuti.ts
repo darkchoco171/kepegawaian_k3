@@ -40,7 +40,7 @@ const riwayatCutiExcel = [
   {"namaLengkap": "Dinar Anggita Restuti S.T.", "jenisCuti": "Tahunan", "tglMulai": "2026-08-12", "tglSelesai": "2026-08-12", "jumlahHari": 1, "alasan": "Data Rekap 12 Agustus 2026"},
   {"namaLengkap": "Nisa Hanif Widyanti S.T.", "jenisCuti": "Tahunan", "tglMulai": "2026-06-15", "tglSelesai": "2026-06-15", "jumlahHari": 1, "alasan": "Data Rekap 15 Juni 2026"},
   {"namaLengkap": "Nisa Hanif Widyanti S.T.", "jenisCuti": "Tahunan", "tglMulai": "2026-08-24", "tglSelesai": "2026-08-24", "jumlahHari": 1, "alasan": "Data Rekap 24 Agustus 2026"},
-  {"namaLengkap": "Johannes Pakpahan S. Psi.", "jenisCuti": "Tahunan", "tglMulai": "2026-07-20", "tglSelesai": "2026-07-20", "jumlahHari": 1, "alasan": "Data Rekap 20 Juli 2026"},
+  {"namaLengkap": "Johannes Pakpahan S.Psi.", "jenisCuti": "Tahunan", "tglMulai": "2026-07-20", "tglSelesai": "2026-07-20", "jumlahHari": 1, "alasan": "Data Rekap 20 Juli 2026"},
   {"namaLengkap": "Gunawan Wibiksana S.H.", "jenisCuti": "Tahunan", "tglMulai": "2026-06-11", "tglSelesai": "2026-06-12", "jumlahHari": 2, "alasan": "Data Rekap 11-12 Juni 2026"},
   {"namaLengkap": "Andi Muh. Adhim", "jenisCuti": "Tahunan", "tglMulai": "2026-05-26", "tglSelesai": "2026-05-29", "jumlahHari": 2, "alasan": "Data Rekap 26-29 Mei 2026"},
   {"namaLengkap": "Andi Muh. Adhim", "jenisCuti": "Tahunan", "tglMulai": "2026-09-04", "tglSelesai": "2026-09-07", "jumlahHari": 2, "alasan": "Data Rekap 4-7 Sept 2026"},
@@ -157,8 +157,8 @@ async function seedRiwayatCuti() {
     }
   }
 
-  console.log(`✅ Berhasil! ${inserted} riwayat cuti berhasil masuk.`);
-  if (notFound > 0) console.log(`❌ ${notFound} data diskip.`);
+  console.log(`Berhasil! ${inserted} riwayat cuti berhasil masuk.`);
+  if (notFound > 0) console.log(`${notFound} data diskip.`);
   
   process.exit(0);
 }

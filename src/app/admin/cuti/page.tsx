@@ -8,6 +8,39 @@ import ModalTambahCuti from '@/components/ui/modal-tambah-cuti';
 import CutiToolbar from '@/components/ui/cuti-toolbar';
 import Link from 'next/link';
 
+// Helper buat format tanggal cuti di UI
+const formatTanggalCuti = (mulai: string, selesai: string, jumlahHari: number) => {
+  const parseDateSafe = (dateStr: string) => {
+    const [y, m, d] = dateStr.split('-');
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  };
+
+  const tMulai = parseDateSafe(mulai);
+  const tSelesai = parseDateSafe(selesai);
+  
+  const optionsFull: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+
+  if (tMulai.getTime() === tSelesai.getTime() || jumlahHari === 1) {
+    return tMulai.toLocaleDateString('id-ID', optionsFull);
+  }
+
+  const isBulanSama = tMulai.getMonth() === tSelesai.getMonth() && tMulai.getFullYear() === tSelesai.getFullYear();
+  const diffTime = Math.abs(tSelesai.getTime() - tMulai.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+  if (jumlahHari === 2 && diffDays > 2) {
+    if (isBulanSama) {
+      return `${tMulai.getDate()} & ${tSelesai.toLocaleDateString('id-ID', optionsFull)}`;
+    }
+    return `${tMulai.toLocaleDateString('id-ID', optionsFull)} & ${tSelesai.toLocaleDateString('id-ID', optionsFull)}`;
+  }
+
+  if (isBulanSama) {
+    return `${tMulai.getDate()} s/d ${tSelesai.toLocaleDateString('id-ID', optionsFull)}`;
+  }
+  return `${tMulai.toLocaleDateString('id-ID', optionsFull)} s/d ${tSelesai.toLocaleDateString('id-ID', optionsFull)}`;
+};
+
 export default async function CutiPage(
   props: { searchParams: Promise<{ page?: string; query?: string; jenis?: string }> }
 ) {
@@ -164,7 +197,7 @@ export default async function CutiPage(
                         </span>
                       </td>
                       <td className="py-3 px-6 font-medium text-slate-700">{item.jenisCuti}</td>
-                      <td className="py-3 px-6 text-slate-600 text-xs">{item.tglMulai} s/d {item.tglSelesai}</td>
+                      <td className="py-3 px-6 text-slate-600 text-xs font-medium"> {formatTanggalCuti(item.tglMulai, item.tglSelesai, item.jumlahHari)}</td>
                       <td className="py-3 px-6 font-bold text-slate-800">{item.jumlahHari} Hari</td>
                       <td className="py-3 px-6 text-slate-500 max-w-[180px] truncate" title={item.alasan || ''}>
                         {item.alasan || '-'}

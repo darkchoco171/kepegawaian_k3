@@ -4,6 +4,8 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ShieldCheck } from 'lucide-react';
+import { signOut } from 'next-auth/react';
+import { LogOut } from 'lucide-react'; // Atau icon apapun yang lu suka
 
 export default function NavbarAdmin() {
   const pathname = usePathname();
@@ -61,6 +63,12 @@ export default function NavbarAdmin() {
             R
           </div>
         </Link>
+        <button 
+          onClick={() => signOut({ callbackUrl: '/login' })}
+          className="flex items-center gap-2 text-sm font-semibold text-red-600 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-lg transition">
+          <LogOut className="w-4 h-4" />
+          Keluar
+        </button>
       </div>
     </header>
   );

@@ -1,14 +1,63 @@
 import { test, expect } from '@playwright/test';
 
-test('Dashboard berhasil render Widget Ultah & SLKS', async ({ page }) => {
-  // 1. buka halaman localhost
-  await page.goto('http://localhost:3000'); // Ganti URL ini kalau misal dashboard lu ada di /dashboard
+// Helper function untuk login otomatis
+async function loginAdmin(page: any) {
+  await page.goto('/login');
+  await page.fill('input[name="nip"]', '199506222018011001');
+  await page.fill('input[name="password"]', 'admin123');
+  await page.click('button[type="submit"]');
+  await page.waitForURL('**/admin/dashboard', {timeout: 30000 });
+}
 
-  // 2. ngecek apakah ada judul "Ulang Tahun Bulan Ini"
-  const judulUltah = page.locator('text=Ulang Tahun Bulan Ini');
-  await expect(judulUltah).toBeVisible();
+test('1. Alur Login Berhasil', async ({ page }) => {
+  await loginAdmin(page);
+  expect(page.url()).toContain('/admin/dashboard');
+});
 
-  // 3. ngecek apakah ada judul "Kandidat Penerima SLKS"
-  const judulSlks = page.locator('text=Kandidat Penerima SLKS');
-  await expect(judulSlks).toBeVisible();
+test('2. Alur Tambah Pegawai Baru', async ({ page }) => {
+  await loginAdmin(page);
+  
+  // Pindah ke halaman Data Pegawai
+  await page.click('text=Data Pegawai');
+  await expect(page).toHaveURL('/admin/pegawai');
+
+  // Klik tombol Tambah Pegawai
+  await page.click('text=Tambah Pegawai');
+
+  // Isi form data pegawai baru
+  await page.fill('input[name="namaLengkap"]', 'Dr. Otomatis Playwright, M.Kom.');
+  await page.fill('input[name="nip"]', '199203152020121002');
+  
+  // Pilih status kepegawaian
+  await page.selectOption('select[name="status"]', 'Aktif');
+
+  // Simpan data
+  await page.click('button:has-text("Simpan Data")');
+
+  // Kasih jeda dikit biar Next.js selesai revalidatePath dan nutup modal
+  await page.waitForTimeout(1500); 
+
+  // Suruh Playwright ngetik di kolom pencarian biar datanya kesaring
+  await page.fill('input[placeholder="Cari nama atau NIP..."]', 'Dr. Otomatis');
+
+  // Baru deh verifikasi namanya muncul di tabel
+  await expect(page.locator('text=Dr. Otomatis Playwright, M.Kom.')).toBeVisible();
+});
+
+test('3. Cek Semua Menu Navigasi Utama Admin', async ({ page }) => {
+  await loginAdmin(page);
+
+  // OPSI PALING GAMPANG: Pakai text= (nyari teks persis di layar)
+  await page.getByRole('link', { name: 'Manajemen Kinerja' }).click();
+  await expect(page).toHaveURL('/admin/manajemen-kinerja');
+
+  await page.getByRole('link', { name: 'Presensi' }).click();
+  await expect(page).toHaveURL('/admin/presensi');
+
+  await page.getByRole('link', { name: 'Tunjangan Kinerja' }).click();
+  await expect(page).toHaveURL('/admin/tukin');
+
+  // OPSI LEBIH KETAT: Pakai getByRole (biar nggak salah klik teks di tempat lain)
+  await page.getByRole('link', { name: 'Manajemen Cuti' }).click();
+  await expect(page).toHaveURL('/admin/cuti');
 });

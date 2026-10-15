@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 
 async function seedUsers() {
-  console.log('Mulai seeding akun admin...');
+  console.log('Sedang membuat akun administrator..');
 
   // 1. Cari pegawai yang mau dijadiin admin (Ganti NIP-nya sesuai data dummy lu)
   const targetPegawai = await db.query.pegawai.findFirst({
@@ -27,7 +27,7 @@ async function seedUsers() {
     isActive: true,
   }).onConflictDoNothing();
 
-  console.log(`Akun admin berhasil dibuat untuk NIP: ${targetPegawai.nip}`);
+  console.log(`Akun administrator berhasil dibuat untuk NIP: ${targetPegawai.nip}`);
   process.exit(0);
 }
 

@@ -56,11 +56,11 @@ export default function PegawaiToolbar() {
         {/* Input Search Live (Tanpa perlu form submit) */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input 
+          <input placeholder="Cari nama atau NIP..."
             type="text" 
             defaultValue={query}
             onChange={handleSearchChange}
-            placeholder="Cari nama atau NIP..." 
+            // placeholder="Cari nama atau NIP..." 
             className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4b8c] focus:border-transparent w-full md:w-56"
           />
         </div>
