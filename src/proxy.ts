@@ -12,7 +12,7 @@ export default withAuth(
   },
   {
     callbacks: {
-      // Satpamnya ngecek: Boleh masuk gak?
+      // Security cek: Boleh masuk gak?
       authorized: ({ req, token }) => {
         // Kalau nyoba masuk folder /admin tapi tokennya ga ada (belum login) -> Tolak!
         if (req.nextUrl.pathname.startsWith("/admin") && token === null) {
