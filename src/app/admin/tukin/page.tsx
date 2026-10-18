@@ -150,7 +150,7 @@ export default async function TukinPage(
                         {item.capaianKinerja}
                       </span>
                     </td>
-                    <td className="py-3 px-6 font-bold text-slate-700">{Number(item.persentaseKinerja) * 100}%</td>
+                    <td className="py-3 px-6 font-bold text-slate-700">{Math.round(Number(item.persentaseKinerja) * 100)}%</td>
                     <td className="py-3 px-6 font-mono text-slate-500">{formatRupiah(Number(item.nominalDasar))}</td>
                     <td className="py-3 px-6 font-mono font-bold text-emerald-600 text-right">
                       {formatRupiah(Number(item.dibayarkan))}

@@ -107,11 +107,17 @@ export default async function CutiPage(
 
   // Pasang sisa cuti ke setiap baris data
   const dataCuti = await Promise.all(
-    rawDataCuti.map(async (item) => {
-      const sisa = await getSisaCutiPegawai(item.idPegawai);
-      return { ...item, sisaCuti: sisa.totalSisa };
-    })
-  );
+  rawDataCuti.map(async (item) => {
+    const sisa = await getSisaCutiPegawai(item.idPegawai);
+    return { 
+      ...item, 
+      sisaCuti: sisa.totalSisa,
+      sisaN2: sisa.sisaN2,
+      sisaN1: sisa.sisaN1,
+      sisaN: sisa.sisaN
+    };
+  })
+);
 
   return (
     <div className="space-y-6">
@@ -192,9 +198,20 @@ export default async function CutiPage(
                       <td className="py-3 px-6">
                         <p className="font-bold text-slate-800">{item.pegawai?.namaLengkap || 'Pegawai Dihapus'}</p>
                         <p className="text-[10px] text-slate-500">{item.pegawai?.nip || '-'}</p>
-                        <span className="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
-                          Sisa Cuti: {item.sisaCuti} Hari
-                        </span>
+                        <div className="text-xs text-slate-500 mt-1 flex flex-col gap-1">
+                          <span className="font-semibold text-slate-700">Total Sisa Cuti: {item.sisaCuti} Hari</span>
+                          <div className="flex items-center gap-2 text-[10px]">
+                            <span className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded border border-emerald-100">
+                              N (2026): {item.sisaN}
+                            </span>
+                            <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100">
+                              N-1 (2025): {item.sisaN1}
+                            </span>
+                            <span className="bg-amber-50 text-amber-600 px-2 py-0.5 rounded border border-amber-100">
+                              N-2 (2024): {item.sisaN2}
+                            </span>
+                          </div>
+                        </div>
                       </td>
                       <td className="py-3 px-6 font-medium text-slate-700">{item.jenisCuti}</td>
                       <td className="py-3 px-6 text-slate-600 text-xs font-medium"> {formatTanggalCuti(item.tglMulai, item.tglSelesai, item.jumlahHari)}</td>

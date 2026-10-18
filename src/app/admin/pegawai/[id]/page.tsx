@@ -142,6 +142,19 @@ export default async function DetailPegawaiPage(
             <span>Terpakai {sisaCuti.terpakai} dari {sisaCuti.totalMaks} hari</span>
             <span className="text-[#1a4b8c]">{sisaCuti.totalSisa} Tersisa</span>
           </div>
+
+          {/* Rincian Sisa Per Tahun */}
+          <div className="flex gap-2 mb-3 text-[10px] font-bold">
+            <span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded border border-emerald-100 flex-1 text-center">
+              2026: {sisaCuti.sisaN} Hari
+            </span>
+            <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-100 flex-1 text-center">
+              2025: {sisaCuti.sisaN1} Hari
+            </span>
+            <span className="bg-amber-50 text-amber-600 px-2 py-1 rounded border border-amber-100 flex-1 text-center">
+              2024: {sisaCuti.sisaN2} Hari
+            </span>
+          </div>
           
           {/* Progress Bar */}
           <div className="w-full bg-slate-100 rounded-full h-2.5">

@@ -169,6 +169,16 @@ export const presensiHarian = pgTable('presensi_harian', {
   pegawaiTglUnique: uniqueIndex('presensi_harian_pegawai_tgl_unique').on(table.idPegawai, table.tgl),
 }));
 
+// sisa cuti tahunan
+export const sisaCuti = pgTable('sisa_cuti', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id, { onDelete: 'cascade' }),
+  tahun: integer('tahun').notNull(),
+  sisa: integer('sisa').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 export const pengajuanCuti = pgTable('pengajuan_cuti', {
   id: uuid('id').primaryKey().defaultRandom(),
   idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id, { onDelete: 'cascade' }),

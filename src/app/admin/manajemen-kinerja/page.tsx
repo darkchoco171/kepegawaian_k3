@@ -85,8 +85,7 @@ export default async function ManajemenKinerjaPage(props: { searchParams: Promis
         </Link>
         <Link 
           href="/admin/manajemen-kinerja?tab=angka-kredit" 
-          className={`px-4 py-3 text-sm font-bold border-b-2 transition ${activeTab === 'angka-kredit' ? 'border-amber-600 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
-        >
+          className={`px-4 py-3 text-sm font-bold border-b-2 transition ${activeTab === 'angka-kredit' ? 'border-amber-600 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
           Angka Kredit Tahunan (PAK)
         </Link>
       </div>
@@ -124,7 +123,7 @@ export default async function ManajemenKinerjaPage(props: { searchParams: Promis
                       <td className="py-3 px-4 text-slate-600 whitespace-nowrap">{item.perilakuKerja || '-'}</td>
                       <td className="py-3 px-4 whitespace-nowrap">
                         <span className="bg-blue-50 text-[#1a4b8c] border border-blue-200 px-2.5 py-1 rounded-lg text-xs font-bold">
-                          {item.capaianKinerja} ({Number(item.persentaseKinerja) * 100}%)
+                          {item.capaianKinerja} {Math.round(Number(item.persentaseKinerja) * 100)}%
                         </span>
                       </td>
                       <td className="py-3 px-4 font-mono font-bold text-emerald-600 text-right whitespace-nowrap">

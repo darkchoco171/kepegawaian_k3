@@ -1,52 +1,35 @@
 // src/app/admin/cuti/hitung-cuti.ts
 import { db } from '@/lib/db';
-import { pengajuanCuti } from '@/db/schema';
-import { eq, and, inArray, sum } from 'drizzle-orm';
+import { sisaCuti } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 export async function getSisaCutiPegawai(idPegawai: string) {
-  // 1. Ambil total hari cuti yang memotong kuota (Tahunan & Sakit) yang DISETUJUI
-  const result = await db
-    .select({
-      totalTerpakai: sum(pengajuanCuti.jumlahHari)
-    })
-    .from(pengajuanCuti)
-    .where(
-      and(
-        eq(pengajuanCuti.idPegawai, idPegawai),
-        eq(pengajuanCuti.statusPengajuan, 'Disetujui'),
-        inArray(pengajuanCuti.jenisCuti, ['Tahunan', 'Sakit'])
-      )
-    );
+  const currentYear = 2026; // Kalau mau dinamis bisa pakai new Date().getFullYear()
+  const tahunN2 = currentYear - 2; // 2024
+  const tahunN1 = currentYear - 1; // 2025
+  const tahunN  = currentYear;     // 2026
 
-  const cutiTerpakai = Number(result[0]?.totalTerpakai || 0);
+  // 1. Ambil Jatah Awal / Jatah Migrasi dari tabel sisa_cuti
+  const dataSisaAwal = await db
+    .select()
+    .from(sisaCuti)
+    .where(eq(sisaCuti.idPegawai, idPegawai));
 
-  // 2. Logika Potongan N-2 (Maks total 36 hari dari 3 tahun)
-  let jatahN2 = 12; // 2024
-  let jatahN1 = 12; // 2025
-  let jatahN = 12;  // 2026
+  // Tahun tanpa saldo tersimpan tidak menambah akumulasi sisa cuti.
+  const jatahN2 = dataSisaAwal.find((s) => s.tahun === tahunN2)?.sisa ?? 0;
+  const jatahN1 = dataSisaAwal.find((s) => s.tahun === tahunN1)?.sisa ?? 0;
+  const jatahN  = dataSisaAwal.find((s) => s.tahun === tahunN)?.sisa ?? 0;
 
-  let sisaPotongan = cutiTerpakai;
-
-  if (sisaPotongan > 0) {
-    const potong = Math.min(jatahN2, sisaPotongan);
-    jatahN2 -= potong;
-    sisaPotongan -= potong;
-  }
-  if (sisaPotongan > 0) {
-    const potong = Math.min(jatahN1, sisaPotongan);
-    jatahN1 -= potong;
-    sisaPotongan -= potong;
-  }
-  if (sisaPotongan > 0) {
-    const potong = Math.min(jatahN, sisaPotongan);
-    jatahN -= potong;
-  }
-
+  const totalMaksAwal = 12 * 3;
   const totalSisa = jatahN2 + jatahN1 + jatahN;
+  const totalTerpakai = Math.max(0, totalMaksAwal - totalSisa);
 
   return {
-    terpakai: cutiTerpakai,
+    terpakai: totalTerpakai,
     totalSisa,
-    totalMaks: 36, // Total jatah 3 tahun
+    totalMaks: totalMaksAwal,
+    sisaN2: jatahN2,
+    sisaN1: jatahN1,
+    sisaN: jatahN,
   };
 }

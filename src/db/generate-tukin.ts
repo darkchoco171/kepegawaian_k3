@@ -43,7 +43,7 @@ async function generateTukin() {
     // TARIK NILAI KINERJA EKSISTING ATAU DEFAULT 100%
     const prevTukin = mapTukin.get(data.idPegawai);
     const capaianKinerja = prevTukin?.capaianKinerja || 'Baik';
-    let rawPersenKinerja = prevTukin ? parseFloat(prevTukin.persentaseKinerja as string) : 0.70;
+    let rawPersenKinerja = prevTukin ? parseFloat(prevTukin.persentaseKinerja as string) : 1.0;
     if (rawPersenKinerja === 1 || isNaN(rawPersenKinerja)) {
       rawPersenKinerja = 0.70;
     }

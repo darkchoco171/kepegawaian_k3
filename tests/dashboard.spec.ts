@@ -24,9 +24,12 @@ test('2. Alur Tambah Pegawai Baru', async ({ page }) => {
   // Klik tombol Tambah Pegawai
   await page.click('text=Tambah Pegawai');
 
-  // Isi form data pegawai baru
-  await page.fill('input[name="namaLengkap"]', 'Dr. Otomatis Playwright, M.Kom.');
-  await page.fill('input[name="nip"]', '199203152020121002');
+  // Isi form data pegawai baru dengan NIP dan Nama dinamis agar tidak kena unique violation
+  const randSuffix = Date.now().toString().slice(-4);
+  const dynamicNip = '199' + Date.now().toString().slice(-9) + '123456';
+  const dynamicNama = `Dr. Otomatis ${randSuffix}`;
+  await page.fill('input[name="namaLengkap"]', dynamicNama);
+  await page.fill('input[name="nip"]', dynamicNip);
   
   // Pilih status kepegawaian
   await page.selectOption('select[name="status"]', 'Aktif');
@@ -38,10 +41,10 @@ test('2. Alur Tambah Pegawai Baru', async ({ page }) => {
   await page.waitForTimeout(1500); 
 
   // Suruh Playwright ngetik di kolom pencarian biar datanya kesaring
-  await page.fill('input[placeholder="Cari nama atau NIP..."]', 'Dr. Otomatis');
+  await page.fill('input[placeholder="Cari nama atau NIP..."]', dynamicNama);
 
   // Baru deh verifikasi namanya muncul di tabel
-  await expect(page.locator('text=Dr. Otomatis Playwright, M.Kom.')).toBeVisible();
+  await expect(page.locator(`text=${dynamicNama}`)).toBeVisible();
 });
 
 test('3. Cek Semua Menu Navigasi Utama Admin', async ({ page }) => {

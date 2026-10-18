@@ -10,25 +10,25 @@ import { redirect } from 'next/navigation';
 function kalkulasiKinerja(hasilKerja: string, perilakuKerja: string) {
   const kombinasi = `${hasilKerja}|${perilakuKerja}`;
   let capaianKinerja = 'Baik'; 
-  let persentaseKinerja = 1.00; // Default Baik = 100% (1.0)
+  let persentaseKinerja = 0.70;
 
   switch (kombinasi) {
     case 'Di Atas Ekspektasi|Di Atas Ekspektasi':
       capaianKinerja = 'Sangat Baik';
-      persentaseKinerja = 1.00;
+      persentaseKinerja = 0.70;
       break;
     
     case 'Sesuai Ekspektasi|Di Atas Ekspektasi':
     case 'Di Atas Ekspektasi|Sesuai Ekspektasi':
     case 'Sesuai Ekspektasi|Sesuai Ekspektasi':
       capaianKinerja = 'Baik';
-      persentaseKinerja = 1.00;
+      persentaseKinerja = 0.70;
       break;
     
     case 'Di Bawah Ekspektasi|Di Atas Ekspektasi':
     case 'Di Bawah Ekspektasi|Sesuai Ekspektasi':
       capaianKinerja = 'Butuh Perbaikan';
-      persentaseKinerja = 0.60;
+      persentaseKinerja = 0.595;
       break;
     
     case 'Di Atas Ekspektasi|Di Bawah Ekspektasi':
@@ -41,9 +41,9 @@ function kalkulasiKinerja(hasilKerja: string, perilakuKerja: string) {
       capaianKinerja = 'Sangat Kurang';
       persentaseKinerja = 0.42;
 
-    default:
-      capaianKinerja = 'Baik';
-      persentaseKinerja = 1.00;
+    // default:
+      // capaianKinerja = 'Baik';
+      // persentaseKinerja = 1.00;
   }
 
   return { capaianKinerja, persentaseKinerja };
@@ -241,7 +241,7 @@ export async function updateMasterKinerja(id: string, formData: FormData) {
     throw new Error('Semua field form wajib diisi!');
   }
 
-  // kalkulasiKinerja ini ngambil dari fungsi yang udah lu bikin di atas ya
+  // kalkulasiKinerja
   const { capaianKinerja, persentaseKinerja } = kalkulasiKinerja(hasilKerja, perilakuKerja);
 
   const dataPegawai = await db
