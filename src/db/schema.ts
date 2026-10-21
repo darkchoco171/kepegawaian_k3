@@ -26,6 +26,7 @@ import {
   time,
   timestamp,
   uniqueIndex,
+  index,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -109,6 +110,7 @@ export const pegawai = pgTable('pegawai', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
   nipUnique: uniqueIndex('pegawai_nip_unique').on(table.nip),
+  namaLengkapIdx: index('nama_lengkap_idx').on(table.namaLengkap),
 }));
 
 export const users = pgTable('users', {
