@@ -2,52 +2,10 @@
 
 import { db } from '@/lib/db';
 import { tukinBulanan, pegawai, masterJabatan, masterKelasJabatan, rekapPresensiBulanan } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { asc, eq, and, gt } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-
-// Fungsi logika matriks penilaian kinerja excel
-function kalkulasiKinerja(hasilKerja: string, perilakuKerja: string) {
-  const kombinasi = `${hasilKerja}|${perilakuKerja}`;
-  let capaianKinerja = 'Baik'; 
-  let persentaseKinerja = 0.70;
-
-  switch (kombinasi) {
-    case 'Di Atas Ekspektasi|Di Atas Ekspektasi':
-      capaianKinerja = 'Sangat Baik';
-      persentaseKinerja = 0.70;
-      break;
-    
-    case 'Sesuai Ekspektasi|Di Atas Ekspektasi':
-    case 'Di Atas Ekspektasi|Sesuai Ekspektasi':
-    case 'Sesuai Ekspektasi|Sesuai Ekspektasi':
-      capaianKinerja = 'Baik';
-      persentaseKinerja = 0.70;
-      break;
-    
-    case 'Di Bawah Ekspektasi|Di Atas Ekspektasi':
-    case 'Di Bawah Ekspektasi|Sesuai Ekspektasi':
-      capaianKinerja = 'Butuh Perbaikan';
-      persentaseKinerja = 0.595;
-      break;
-    
-    case 'Di Atas Ekspektasi|Di Bawah Ekspektasi':
-    case 'Sesuai Ekspektasi|Di Bawah Ekspektasi':
-      capaianKinerja = 'Kurang/Miss Conduct';
-      persentaseKinerja = 0.42;
-      break;
-    
-    case 'Di Bawah Ekspektasi|Di Bawah Ekspektasi':
-      capaianKinerja = 'Sangat Kurang';
-      persentaseKinerja = 0.42;
-
-    // default:
-      // capaianKinerja = 'Baik';
-      // persentaseKinerja = 1.00;
-  }
-
-  return { capaianKinerja, persentaseKinerja };
-}
+import { kalkulasiKinerja } from '@/lib/tukin/calculation';
 
 export async function simpanMasterKinerja(formData: FormData) {
   const idPegawai = formData.get('idPegawai') as string;
@@ -153,7 +111,8 @@ export async function simpanAngkaKredit(formData: FormData) {
     // 1. Cari data pegawai dan urutan golongannya saat ini
     const dataPegawai = await db.select({
       idGolongan: pegawai.idGolongan,
-      urutanJenjang: masterPangkatGolongan.urutanJenjang
+      urutanJenjang: masterPangkatGolongan.urutanJenjang,
+      jenisKepegawaian: masterPangkatGolongan.jenisKepegawaian,
     })
     .from(pegawai)
     .leftJoin(masterPangkatGolongan, eq(pegawai.idGolongan, masterPangkatGolongan.id))
@@ -168,10 +127,14 @@ export async function simpanAngkaKredit(formData: FormData) {
 
     // 2. Cari target AK (Angka Kredit) untuk jenjang BERSYARAT berikutnya
     let targetAkNum = 0;
-    if (currentGolongan.urutanJenjang) {
+    if (currentGolongan.urutanJenjang && currentGolongan.jenisKepegawaian) {
       const nextGolongan = await db.select()
         .from(masterPangkatGolongan)
-        .where(eq(masterPangkatGolongan.urutanJenjang, currentGolongan.urutanJenjang + 1))
+        .where(and(
+          eq(masterPangkatGolongan.jenisKepegawaian, currentGolongan.jenisKepegawaian),
+          gt(masterPangkatGolongan.urutanJenjang, currentGolongan.urutanJenjang),
+        ))
+        .orderBy(asc(masterPangkatGolongan.urutanJenjang))
         .limit(1);
 
       if (nextGolongan.length > 0 && nextGolongan[0].angkaKreditMinimal) {
@@ -299,7 +262,8 @@ export async function updateAngkaKredit(id: string, formData: FormData) {
   try {
     const dataPegawai = await db.select({
       idGolongan: pegawai.idGolongan,
-      urutanJenjang: masterPangkatGolongan.urutanJenjang
+      urutanJenjang: masterPangkatGolongan.urutanJenjang,
+      jenisKepegawaian: masterPangkatGolongan.jenisKepegawaian,
     })
     .from(pegawai)
     .leftJoin(masterPangkatGolongan, eq(pegawai.idGolongan, masterPangkatGolongan.id))
@@ -309,10 +273,14 @@ export async function updateAngkaKredit(id: string, formData: FormData) {
     if (dataPegawai.length === 0 || !dataPegawai[0].idGolongan) throw new Error('Gagal: Golongan belum diatur!');
 
     let targetAkNum = 0;
-    if (dataPegawai[0].urutanJenjang) {
+    if (dataPegawai[0].urutanJenjang && dataPegawai[0].jenisKepegawaian) {
       const nextGolongan = await db.select()
         .from(masterPangkatGolongan)
-        .where(eq(masterPangkatGolongan.urutanJenjang, dataPegawai[0].urutanJenjang + 1))
+        .where(and(
+          eq(masterPangkatGolongan.jenisKepegawaian, dataPegawai[0].jenisKepegawaian),
+          gt(masterPangkatGolongan.urutanJenjang, dataPegawai[0].urutanJenjang),
+        ))
+        .orderBy(asc(masterPangkatGolongan.urutanJenjang))
         .limit(1);
 
       if (nextGolongan.length > 0 && nextGolongan[0].angkaKreditMinimal) {

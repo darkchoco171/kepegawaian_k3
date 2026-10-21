@@ -18,6 +18,12 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Menyiapkan akun administrator
+
+Kata sandi dapat diubah kapan saja dari halaman **Profil**. Penggantian kata sandi tidak diwajibkan saat login, sehingga alur fitur lain tetap bisa diuji di development.
+
+Seed akun administrator memerlukan `ADMIN_INITIAL_PASSWORD` yang disimpan di environment lokal/deployment, bukan di source control. Gunakan kata sandi sementara dan bagikan secara aman kepada administrator. Untuk E2E, atur `E2E_ADMIN_PASSWORD` atau gunakan `ADMIN_INITIAL_PASSWORD` dari environment lokal.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More

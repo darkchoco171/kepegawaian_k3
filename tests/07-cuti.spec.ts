@@ -10,9 +10,9 @@ test.describe('Modul 07: Manajemen Cuti Pegawai', () => {
 
   test('7.1 Menampilkan halaman manajemen cuti, kartu ringkasan, dan tabel', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Manajemen Pengajuan Cuti' })).toBeVisible();
-    await expect(page.locator('main').getByText('Disetujui', { exact: true })).toBeVisible();
-    await expect(page.locator('main').getByText('Menunggu Persetujuan', { exact: true })).toBeVisible();
-    await expect(page.locator('main').getByText('Ditolak', { exact: true })).toBeVisible();
+    await expect(page.locator('main').getByText('Disetujui', { exact: true }).first()).toBeVisible();
+    await expect(page.locator('main').getByText('Menunggu Persetujuan', { exact: true }).first()).toBeVisible();
+    await expect(page.locator('main').getByText('Ditolak', { exact: true }).first()).toBeVisible();
     await expect(page.locator('button:has-text("Ajukan Cuti Baru")')).toBeVisible();
     await expect(page.locator('table')).toBeVisible();
   });
@@ -21,14 +21,13 @@ test.describe('Modul 07: Manajemen Cuti Pegawai', () => {
     const filterJenis = page.locator('select');
     if (await filterJenis.count() > 0) {
       await filterJenis.first().selectOption('Tahunan');
-      await page.waitForTimeout(500);
+      await expect(page).toHaveURL(/jenis=Tahunan/);
     }
 
     const searchInput = page.locator('input[placeholder="Cari nama pegawai..."]');
     if (await searchInput.isVisible()) {
       await searchInput.fill('Aryo');
-      await page.waitForTimeout(1000);
-      expect(page.url()).toContain('query=Aryo');
+      await expect(page).toHaveURL(/query=Aryo/);
     }
   });
 
@@ -60,19 +59,25 @@ test.describe('Modul 07: Manajemen Cuti Pegawai', () => {
     if (firstOptionValue) {
       await pegawaiSelect.selectOption(firstOptionValue);
     }
+    const selectedPegawai = (await pegawaiSelect.locator('option:checked').textContent()) || '';
+    const namaPegawai = selectedPegawai.split(' — NIP.')[0].trim();
 
-    // Pilih Jenis Cuti Alasan Penting
-    await page.selectOption('select[name="jenisCuti"]', 'Alasan Penting');
+    await page.selectOption('select[name="jenisCuti"]', 'Tahunan');
 
-    // Gunakan tanggal masa depan acak agar tidak overlap dengan data yang ada
-    const randomDay = Math.floor(10 + Math.random() * 15);
-    const tglMulai = `2029-06-${randomDay}`;
-    const tglSelesai = `2029-06-${randomDay}`;
+    // Gunakan tanggal masa depan pada hari kerja agar tes tidak terpengaruh akhir pekan.
+    const futureYear = 2035 + Math.floor(Math.random() * 100);
+    const weekday = new Date(Date.UTC(futureYear, 5, 1));
+    while (weekday.getUTCDay() === 0 || weekday.getUTCDay() === 6) {
+      weekday.setUTCDate(weekday.getUTCDate() + 1);
+    }
+    const tglMulai = weekday.toISOString().slice(0, 10);
+    const tglSelesai = tglMulai;
+    const alasanUji = `Urusan keluarga mendesak (Playwright Auto Test ${Date.now()})`;
 
     await page.fill('input[name="tglMulai"]', tglMulai);
     await page.fill('input[name="tglSelesai"]', tglSelesai);
-    await page.fill('input[name="jumlahHari"]', '1');
-    await page.fill('textarea[name="alasan"]', 'Urusan keluarga mendesak (Playwright Auto Test)');
+    await expect(page.locator('input[name="jumlahHari"]')).toHaveValue('1');
+    await page.fill('textarea[name="alasan"]', alasanUji);
 
     // Tangani dialog alert jika ada
     page.on('dialog', async (dialog) => {
@@ -84,6 +89,13 @@ test.describe('Modul 07: Manajemen Cuti Pegawai', () => {
 
     // Tunggu modal tertutup
     await expect(page.locator('h3:has-text("Form Pengajuan Cuti Pegawai")')).not.toBeVisible({ timeout: 15000 });
+    await expect(page.locator('table')).toContainText(alasanUji);
+    const rowCuti = page.locator('tr', { hasText: alasanUji });
+    await expect(rowCuti).toContainText(`N-2 (${futureYear - 2}): 11`);
+
+    await page.goto(`/admin/presensi?bulan=${futureYear}-06&query=${encodeURIComponent(namaPegawai)}`);
+    const rowPresensi = page.locator('tr', { hasText: namaPegawai });
+    await expect(rowPresensi).toContainText('Cuti');
   });
 
 });

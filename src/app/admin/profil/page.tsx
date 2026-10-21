@@ -3,6 +3,7 @@ import { User, Briefcase, CheckCircle2 } from 'lucide-react';
 import { db } from '@/lib/db';
 import { pegawai} from '@/db/schema';
 import { ilike } from 'drizzle-orm';
+import PasswordChangeForm from '@/components/auth/password-change-form';
 
 export default async function ProfilPage() {
   const p = await db.query.pegawai.findFirst({
@@ -20,8 +21,10 @@ export default async function ProfilPage() {
   // Kalau ternyata database pegawai beneran kosong
   if (!p) {
     return (
-      <div className="p-10 text-center text-slate-500">
-        Data pegawai masih kosong. Silakan tambah data pegawai dulu di menu Data Pegawai.
+      <div className="space-y-6 max-w-4xl mx-auto">
+        <div className="p-10 text-center text-slate-500">
+          Data pegawai masih kosong. Silakan tambah data pegawai dulu di menu Data Pegawai.
+        </div>
       </div>
     );
   }
@@ -88,6 +91,7 @@ export default async function ProfilPage() {
         </div>
 
       </div>
+      <PasswordChangeForm />
     </div>
   );
 }

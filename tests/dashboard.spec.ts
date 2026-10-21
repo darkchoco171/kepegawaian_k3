@@ -1,13 +1,5 @@
 import { test, expect } from '@playwright/test';
-
-// Helper function untuk login otomatis
-async function loginAdmin(page: any) {
-  await page.goto('/login');
-  await page.fill('input[name="nip"]', '199506222018011001');
-  await page.fill('input[name="password"]', 'admin123');
-  await page.click('button[type="submit"]');
-  await page.waitForURL('**/admin/dashboard', {timeout: 30000 });
-}
+import { loginAdmin } from './helpers/test-helper';
 
 test('1. Alur Login Berhasil', async ({ page }) => {
   await loginAdmin(page);
@@ -30,6 +22,11 @@ test('2. Alur Tambah Pegawai Baru', async ({ page }) => {
   const dynamicNama = `Dr. Otomatis ${randSuffix}`;
   await page.fill('input[name="namaLengkap"]', dynamicNama);
   await page.fill('input[name="nip"]', dynamicNip);
+  await page.fill('input[name="namaJabatan"]', 'Penguji K3 Ahli Pertama');
+  await page.selectOption('select[name="idKelasJabatan"]', { label: 'Kelas 8 (Rp 4.595.150)' });
+  await page.fill('input[name="pangkat"]', 'Penata Muda');
+  await page.fill('input[name="golongan"]', 'III/a');
+  await page.selectOption('select[name="jenisKepegawaian"]', 'PNS');
   
   // Pilih status kepegawaian
   await page.selectOption('select[name="status"]', 'Aktif');
@@ -44,7 +41,12 @@ test('2. Alur Tambah Pegawai Baru', async ({ page }) => {
   await page.fill('input[placeholder="Cari nama atau NIP..."]', dynamicNama);
 
   // Baru deh verifikasi namanya muncul di tabel
-  await expect(page.locator(`text=${dynamicNama}`)).toBeVisible();
+  const row = page.locator('tr', { hasText: dynamicNama });
+  await expect(row).toBeVisible();
+
+  page.once('dialog', dialog => dialog.accept());
+  await row.locator('button[title="Hapus Pegawai"]').click();
+  await expect(row).not.toBeVisible();
 });
 
 test('3. Cek Semua Menu Navigasi Utama Admin', async ({ page }) => {

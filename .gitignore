@@ -43,6 +43,7 @@ next-env.d.ts
 # Abaikan semua file excel lokal
 *.xlsx
 *.xls
+!tests/fixtures/presensi-dummy-november-2026.xlsx
 
 # Playwright
 node_modules/

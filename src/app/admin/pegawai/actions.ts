@@ -1,28 +1,106 @@
 'use server';
 
+import { randomUUID } from 'node:crypto';
 import { db } from '@/lib/db';
-import { pegawai, riwayatDiklat, riwayatPendidikan } from '@/db/schema';
-import { and, eq, notInArray } from 'drizzle-orm';
+import {
+  masterJabatan,
+  masterPangkatGolongan,
+  pegawai,
+  riwayatDiklat,
+  riwayatPendidikan,
+  sisaCuti,
+} from '@/db/schema';
+import { and, eq, ilike, notInArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { ANNUAL_CUTI_QUOTA } from '@/app/admin/cuti/cuti-utils';
+
+async function resolveMasterReferences(formData: FormData) {
+  const namaJabatan = String(formData.get('namaJabatan') || '').trim();
+  const idKelasJabatan = String(formData.get('idKelasJabatan') || '');
+  const pangkat = String(formData.get('pangkat') || '').trim();
+  const golongan = String(formData.get('golongan') || '').trim();
+  const jenisKepegawaian = String(formData.get('jenisKepegawaian') || '');
+
+  if (!namaJabatan || !idKelasJabatan || !pangkat || !golongan) {
+    throw new Error('Jabatan, kelas jabatan, pangkat, dan golongan wajib diisi.');
+  }
+  if (!['PNS', 'PPPK', 'NON-ASN'].includes(jenisKepegawaian)) {
+    throw new Error('Jenis kepegawaian tidak valid.');
+  }
+
+  const [jabatanMaster] = await db.select({
+    id: masterJabatan.id,
+    idKelasJabatan: masterJabatan.idKelasJabatan,
+  })
+    .from(masterJabatan)
+    .where(ilike(masterJabatan.namaJabatan, namaJabatan))
+    .limit(1);
+
+  if (!jabatanMaster) {
+    throw new Error('Jabatan belum tersedia di master. Lengkapi data master jabatan terlebih dahulu.');
+  }
+  if (jabatanMaster.idKelasJabatan !== idKelasJabatan) {
+    throw new Error('Kelas jabatan tidak sesuai dengan master untuk jabatan tersebut.');
+  }
+
+  const [golonganMaster] = await db.select({
+    id: masterPangkatGolongan.id,
+    pangkat: masterPangkatGolongan.pangkat,
+    jenisKepegawaian: masterPangkatGolongan.jenisKepegawaian,
+    angkaKreditMinimal: masterPangkatGolongan.angkaKreditMinimal,
+  })
+    .from(masterPangkatGolongan)
+    .where(ilike(masterPangkatGolongan.golongan, golongan))
+    .limit(1);
+
+  if (!golonganMaster) {
+    throw new Error('Pangkat/golongan belum tersedia di master. Lengkapi data master beserta aturan AK terlebih dahulu.');
+  }
+  if (golonganMaster.pangkat?.toLocaleLowerCase('id-ID') !== pangkat.toLocaleLowerCase('id-ID')
+    || golonganMaster.jenisKepegawaian !== jenisKepegawaian) {
+    throw new Error('Pangkat/golongan atau jenis kepegawaian tidak sesuai dengan master.');
+  }
+  if (jenisKepegawaian === 'PNS' && golonganMaster.angkaKreditMinimal === null) {
+    throw new Error('Aturan AK untuk pangkat/golongan ini belum dilengkapi. Lengkapi master terlebih dahulu.');
+  }
+
+  return { idJabatan: jabatanMaster.id, idGolongan: golonganMaster.id };
+}
 
 // FUNGSI 1: TAMBAH PEGAWAI
 export async function simpanPegawaiBaru(formData: FormData) {
+  const { idJabatan, idGolongan } = await resolveMasterReferences(formData);
   const status = formData.get('status') as string;
   const keterangan = status === 'Aktif' ? null : status;
+  const pegawaiId = randomUUID();
+  const currentYear = new Date().getFullYear();
 
-  const [pegawaiBaru] = await db.insert(pegawai).values({
-    namaLengkap: formData.get('namaLengkap') as string,
-    nip: formData.get('nip') as string,
-    jabatanTim: (formData.get('jabatanTim') as string) || null,
-    keterangan: keterangan,
-    tempatLahir: (formData.get('tempatLahir') as string) || null,
-    tglLahir: (formData.get('tglLahir') as string) || null,
-    jenisKelamin: (formData.get('jenisKelamin') as 'L' | 'P') || null,
-    agama: (formData.get('agama') as string) || null,
-    statusPernikahan: (formData.get('statusPernikahan') as string) || null,
-    tanggalMulaiKerja: (formData.get('tanggalMulaiKerja') as string) || null,
-    kontak: (formData.get('kontak') as string) || null,
-  }).returning({ id: pegawai.id });
+  await db.batch([
+    db.insert(pegawai).values({
+      id: pegawaiId,
+      namaLengkap: formData.get('namaLengkap') as string,
+      nip: formData.get('nip') as string,
+      idJabatan,
+      idGolongan,
+      jabatanTim: (formData.get('jabatanTim') as string) || null,
+      keterangan: keterangan,
+      tempatLahir: (formData.get('tempatLahir') as string) || null,
+      tglLahir: (formData.get('tglLahir') as string) || null,
+      jenisKelamin: (formData.get('jenisKelamin') as 'L' | 'P') || null,
+      agama: (formData.get('agama') as string) || null,
+      statusPernikahan: (formData.get('statusPernikahan') as string) || null,
+      tanggalMulaiKerja: (formData.get('tanggalMulaiKerja') as string) || null,
+      kontak: (formData.get('kontak') as string) || null,
+    }),
+    db.insert(sisaCuti).values(
+      [currentYear - 2, currentYear - 1, currentYear].map((tahun) => ({
+        idPegawai: pegawaiId,
+        tahun,
+        sisa: ANNUAL_CUTI_QUOTA,
+      })),
+    ),
+  ]);
+  const pegawaiBaru = { id: pegawaiId };
 
   const pendidikanJenjang = formData.getAll('pendidikanJenjang').map(value => String(value).trim());
   const pendidikanInstitusi = formData.getAll('pendidikanInstitusi').map(value => String(value).trim());
@@ -70,6 +148,7 @@ export async function simpanPegawaiBaru(formData: FormData) {
 
 // FUNGSI 2: EDIT PEGAWAI
 export async function editPegawaiData(formData: FormData) {
+  const { idJabatan, idGolongan } = await resolveMasterReferences(formData);
   const id = formData.get('id') as string; // Butuh ID buat tau siapa yang diedit
   const status = formData.get('status') as string;
   const keterangan = status === 'Aktif' ? null : status;
@@ -77,6 +156,8 @@ export async function editPegawaiData(formData: FormData) {
   await db.update(pegawai).set({
     namaLengkap: formData.get('namaLengkap') as string,
     nip: formData.get('nip') as string,
+    idJabatan,
+    idGolongan,
     jabatanTim: (formData.get('jabatanTim') as string) || null,
     keterangan: keterangan,
     tempatLahir: (formData.get('tempatLahir') as string) || null,

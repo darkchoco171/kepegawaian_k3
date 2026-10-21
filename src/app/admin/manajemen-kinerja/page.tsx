@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { tukinBulanan, pegawai, masterJabatan, riwayatAngkaKredit, masterPangkatGolongan } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import Link from 'next/link';
-import { Plus, Target, CheckCircle2 } from 'lucide-react';
+import { Plus, Target, CheckCircle2, Database } from 'lucide-react';
 import { Edit } from 'lucide-react';
 import TombolHapusKinerja from '@/components/ui/tombol-hapus-kinerja';
 import { hapusMasterKinerja, hapusAngkaKredit } from './actions';
@@ -62,17 +62,20 @@ export default async function ManajemenKinerjaPage(props: { searchParams: Promis
           <p className="text-sm text-slate-500 mt-1">Kelola data Hasil Kerja (Bulanan) dan Angka Kredit (Tahunan)</p>
         </div>
         
-        {/* Tombol Berubah Sesuai Tab */}
-        {activeTab === 'bulanan' ? (
-          <Link href="/admin/manajemen-kinerja/input" className="flex items-center gap-2 bg-[#1a4b8c] hover:bg-[#123666] text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm">
-            <Plus className="w-4 h-4" /> Input Kinerja Bulanan
+        <div className="flex flex-wrap items-center gap-2">
+          {activeTab === 'bulanan' ? (
+            <Link href="/admin/manajemen-kinerja/input" className="flex items-center gap-2 bg-[#1a4b8c] hover:bg-[#123666] text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm">
+              <Plus className="w-4 h-4" /> Input Kinerja Bulanan
+            </Link>
+          ) : (
+            <Link href="/admin/manajemen-kinerja/input-ak" className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm">
+              <Target className="w-4 h-4" /> Input Angka Kredit
+            </Link>
+          )}
+          <Link href="/admin/manajemen-kinerja/master-pangkat-golongan" className="flex items-center gap-2 border border-slate-200 text-slate-700 hover:bg-slate-50 px-4 py-2.5 rounded-xl text-sm font-semibold transition">
+            <Database className="w-4 h-4" /> Master Pangkat/Golongan
           </Link>
-        ) : (
-          // Nanti lu bisa bikin halaman modal khusus buat form input angka kredit
-          <Link href="/admin/manajemen-kinerja/input-ak" className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm">
-            <Target className="w-4 h-4" /> Input Angka Kredit
-          </Link>
-        )}
+        </div>
       </div>
 
       {/* NAVIGATION TABS */}

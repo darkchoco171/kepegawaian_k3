@@ -3,6 +3,7 @@
 import { eq, and, lte, gte } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { presensiHarian, pegawai, masterJabatan, masterKelasJabatan, rekapPresensiBulanan, pengajuanCuti } from '@/db/schema';
+import { kalkulasiKehadiranDariPersentasePotongan } from '@/lib/tukin/calculation';
 import { revalidatePath } from 'next/cache';
 import * as xlsx from 'xlsx';
 
@@ -395,13 +396,15 @@ export async function prosesImportPresensiExcel(formData: FormData) {
 
     // 4. Upsert ke rekapPresensiBulanan
     for (const [idPegawai, dataRekap] of Object.entries(rekapBulanan)) {
-      let totalPotongan = dataRekap.totalPotonganPersen;
-      if (totalPotongan > 100) totalPotongan = 100;
-
-      const persentaseKehadiranNum = 100 - totalPotongan;
-      const maksimalKehadiran = dataRekap.baseTukin * 0.30;
-      const nominalKehadiranNum = maksimalKehadiran * (persentaseKehadiranNum / 100);
-      const potonganKehadiranNum = maksimalKehadiran - nominalKehadiranNum;
+      const {
+        persentasePotongan,
+        persentaseKehadiran: persentaseKehadiranNum,
+        nominalKehadiran: nominalKehadiranNum,
+        jumlahPotonganKehadiran: potonganKehadiranNum,
+      } = kalkulasiKehadiranDariPersentasePotongan(
+        dataRekap.baseTukin,
+        dataRekap.totalPotonganPersen,
+      );
 
       await db
         .insert(rekapPresensiBulanan)
@@ -414,7 +417,7 @@ export async function prosesImportPresensiExcel(formData: FormData) {
           jumlahLupaAbsen: 0,
           jumlahAlpa: 0,
           jumlahCtGugurKandunganGt1Bln: 0,
-          persentasePotongan: totalPotongan.toFixed(2),
+          persentasePotongan: persentasePotongan.toFixed(2),
           persentaseKehadiran: persentaseKehadiranNum.toFixed(2),
           nominalKehadiran: nominalKehadiranNum.toFixed(2),
           jumlahPotonganKehadiran: potonganKehadiranNum.toFixed(2),
@@ -424,7 +427,7 @@ export async function prosesImportPresensiExcel(formData: FormData) {
           set: {
             hariKerja: dataRekap.totalHariKerja,
             totalMenitTerlambat: dataRekap.totalMenitTelat,
-            persentasePotongan: totalPotongan.toFixed(2),
+            persentasePotongan: persentasePotongan.toFixed(2),
             persentaseKehadiran: persentaseKehadiranNum.toFixed(2),
             nominalKehadiran: nominalKehadiranNum.toFixed(2),
             jumlahPotonganKehadiran: potonganKehadiranNum.toFixed(2),

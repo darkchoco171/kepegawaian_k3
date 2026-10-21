@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { tukinBulanan, rekapPresensiBulanan } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { hitungTukinDibayarkan } from '@/lib/tukin/calculation';
 
 export async function kalkulasiTukinMassal(bulan: number, tahun: number) {
   try {
@@ -36,7 +37,10 @@ export async function kalkulasiTukinMassal(bulan: number, tahun: number) {
       }
 
       // Hitung total bersih
-      const totalDibayarkan = Number(kinerja.nominalKinerja || 0) + nominalKehadiranNum;
+      const totalDibayarkan = hitungTukinDibayarkan(
+        Number(kinerja.nominalKinerja || 0),
+        nominalKehadiranNum,
+      );
 
       // Update tabel tukin_bulanan
       await db.update(tukinBulanan)

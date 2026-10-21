@@ -6,7 +6,17 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import ModalTambahPegawai from '@/components/ui/modal-tambah-pegawai';
 import { DAFTAR_TIM } from '@/lib/constants';
 
-export default function PegawaiToolbar() {
+type KelasJabatanOption = {
+  id: string;
+  kelasJabatan: number;
+  baseTukin: string;
+};
+
+export default function PegawaiToolbar({
+  kelasJabatanOptions,
+}: {
+  kelasJabatanOptions: KelasJabatanOption[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -78,7 +88,7 @@ export default function PegawaiToolbar() {
         </select>
 
         {/* Tombol Tambah Pegawai */}
-        <ModalTambahPegawai />
+        <ModalTambahPegawai kelasJabatanOptions={kelasJabatanOptions} />
       </div>
     </div>
   );

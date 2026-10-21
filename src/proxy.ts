@@ -4,10 +4,10 @@ import { NextResponse } from "next/server";
 
 export default withAuth(
   function middleware(req) {
-    // Kalau udah login tapi mau akses halaman /login lagi, tendang ke dashboard
-    if (req.nextUrl.pathname === "/login") {
+    if (req.nextUrl.pathname === "/login" && req.nextauth.token) {
       return NextResponse.redirect(new URL("/admin/dashboard", req.url));
     }
+
     return NextResponse.next();
   },
   {

@@ -2,53 +2,31 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { tukinBulanan, rekapPresensiBulanan, masterKelasJabatan, masterJabatan, pegawai, masterPangkatGolongan } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { tukinBulanan, rekapPresensiBulanan, masterKelasJabatan, masterJabatan, pegawai, masterPangkatGolongan, pengajuanCuti } from '@/db/schema';
+import { eq, and, inArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import * as XLSX from 'xlsx';
+import { kalkulasiKinerja } from '@/lib/tukin/calculation';
 
-// Fungsi bantu kalkulasi matriks kinerja
-function kalkulasiKinerja(hasilKerja: string, perilakuKerja: string) {
-  const kombinasi = `${hasilKerja}|${perilakuKerja}`;
-  let capaianKinerja = 'Baik'; 
-  let persentaseKinerja = 1.00;
+function hitungHariKerjaDalamRentang(tglMulai: string, tglSelesai: string) {
+  let jumlah = 0;
+  const tanggal = new Date(`${tglMulai}T00:00:00Z`);
+  const batas = new Date(`${tglSelesai}T00:00:00Z`);
 
-  switch (kombinasi) {
-    case 'Di Atas Ekspektasi|Di Atas Ekspektasi':
-      capaianKinerja = 'Sangat Baik';
-      persentaseKinerja = 1.00;
-      break;
-    case 'Sesuai Ekspektasi|Di Atas Ekspektasi':
-    case 'Di Atas Ekspektasi|Sesuai Ekspektasi':
-    case 'Sesuai Ekspektasi|Sesuai Ekspektasi':
-      capaianKinerja = 'Baik';
-      persentaseKinerja = 1.00;
-      break;
-    case 'Di Bawah Ekspektasi|Di Atas Ekspektasi':
-    case 'Di Bawah Ekspektasi|Sesuai Ekspektasi':
-      capaianKinerja = 'Butuh Perbaikan';
-      persentaseKinerja = 0.60;
-      break;
-    case 'Di Atas Ekspektasi|Di Bawah Ekspektasi':
-    case 'Sesuai Ekspektasi|Di Bawah Ekspektasi':
-      capaianKinerja = 'Kurang/Miss Conduct';
-      persentaseKinerja = 0.42;
-      break;
-    case 'Di Bawah Ekspektasi|Di Bawah Ekspektasi':
-      capaianKinerja = 'Sangat Kurang';
-      persentaseKinerja = 0.42;
-      break;
-    default:
-      capaianKinerja = 'Baik';
-      persentaseKinerja = 1.00;
+  while (tanggal <= batas) {
+    const hari = tanggal.getUTCDay();
+    if (hari !== 0 && hari !== 6) jumlah++;
+    tanggal.setUTCDate(tanggal.getUTCDate() + 1);
   }
-  return { capaianKinerja, persentaseKinerja };
+
+  return jumlah;
 }
 
 // 1. NAMA FUNGSI TETAP UTUH (getExportDataTukin), TAPI ISI FORMATNYA 38 KOLOM RESMI MBA NISA
 export async function getExportDataTukin(bulan: number, tahun: number) {
   const dataTukin = await db
     .select({
+      idPegawai: tukinBulanan.idPegawai,
       namaPegawai: pegawai.namaLengkap,
       nip: pegawai.nip,
       golongan: masterPangkatGolongan.golongan,
@@ -59,6 +37,7 @@ export async function getExportDataTukin(bulan: number, tahun: number) {
       totalMenitTerlambat: rekapPresensiBulanan.totalMenitTerlambat,
       jumlahLupaAbsen: rekapPresensiBulanan.jumlahLupaAbsen,
       jumlahAlpa: rekapPresensiBulanan.jumlahAlpa,
+      jumlahTdkUpc: rekapPresensiBulanan.jumlahTdkUpc,
       persentasePotongan: rekapPresensiBulanan.persentasePotongan,
       persentaseKehadiran: rekapPresensiBulanan.persentaseKehadiran,
       nominalKehadiran: rekapPresensiBulanan.nominalKehadiran,
@@ -78,8 +57,34 @@ export async function getExportDataTukin(bulan: number, tahun: number) {
     .leftJoin(rekapPresensiBulanan, eq(tukinBulanan.idRekapPresensiBulanan, rekapPresensiBulanan.id))
     .where(and(eq(tukinBulanan.bulan, bulan), eq(tukinBulanan.tahun, tahun)));
 
+  const idPegawai = [...new Set(dataTukin.map((item) => item.idPegawai))];
+  const dataCuti = idPegawai.length > 0
+    ? await db
+      .select({
+        idPegawai: pengajuanCuti.idPegawai,
+        jenisCuti: pengajuanCuti.jenisCuti,
+        tglMulai: pengajuanCuti.tglMulai,
+        tglSelesai: pengajuanCuti.tglSelesai,
+      })
+      .from(pengajuanCuti)
+      .where(and(
+        inArray(pengajuanCuti.idPegawai, idPegawai),
+        eq(pengajuanCuti.statusPengajuan, 'Disetujui'),
+      ))
+    : [];
+  const cutiByPegawai = new Map<string, typeof dataCuti>();
+  for (const cuti of dataCuti) {
+    const cutiPegawai = cutiByPegawai.get(cuti.idPegawai) || [];
+    cutiPegawai.push(cuti);
+    cutiByPegawai.set(cuti.idPegawai, cutiPegawai);
+  }
+
+  const bulanMulai = `${tahun}-${String(bulan).padStart(2, '0')}-01`;
+  const bulanSelesai = new Date(Date.UTC(tahun, bulan, 0)).toISOString().slice(0, 10);
+  const bulanPeriode = tahun * 12 + bulan;
+
   // Susun header baris 1 s.d 6 persis template asli
-  const sheetData: any[][] = [
+  const sheetData: (string | number)[][] = [
     // ['FORM PEMBAYARAN TUNJANGAN KINERJA PEGAWAI KEMENTERIAN KETENAGAKERJAAN'],
     // ['DIREKTORAT BINA SISTEM PENGAWASAN KETENAGAKERJAAN'],
     // [`BULAN ${bulan} TAHUN ${tahun}`],
@@ -98,6 +103,40 @@ export async function getExportDataTukin(bulan: number, tahun: number) {
 
   // Masukkan baris data pegawai
   dataTukin.forEach((item, index) => {
+    const cutiPegawai = cutiByPegawai.get(item.idPegawai) || [];
+    const cutiPeriode = cutiPegawai.map((cuti) => {
+      const mulai = cuti.tglMulai > bulanMulai ? cuti.tglMulai : bulanMulai;
+      const selesai = cuti.tglSelesai < bulanSelesai ? cuti.tglSelesai : bulanSelesai;
+      const jumlahHariPeriode = mulai <= selesai
+        ? hitungHariKerjaDalamRentang(mulai, selesai)
+        : 0;
+      const periodeMulaiCuti = Number(cuti.tglMulai.slice(0, 4)) * 12
+        + Number(cuti.tglMulai.slice(5, 7));
+
+      return {
+        ...cuti,
+        jumlahHariPeriode,
+        selisihBulan: bulanPeriode - periodeMulaiCuti,
+      };
+    });
+    const cutiSakitBulanI = cutiPeriode
+      .filter((cuti) => cuti.jenisCuti === 'Sakit' && cuti.selisihBulan === 0)
+      .reduce((total, cuti) => total + cuti.jumlahHariPeriode, 0);
+    const cutiBesarAPKurangSebulan = cutiPeriode
+      .filter((cuti) =>
+        (cuti.jenisCuti === 'Besar' || cuti.jenisCuti === 'Alasan Penting')
+        && hitungHariKerjaDalamRentang(cuti.tglMulai, cuti.tglSelesai) < 30)
+      .reduce((total, cuti) => total + cuti.jumlahHariPeriode, 0);
+    const cutiGugurKandunganLebihSebulan = cutiPeriode
+      .filter((cuti) => cuti.jenisCuti === 'Gugur Kandungan' && cuti.selisihBulan > 0)
+      .length;
+    const cutiSakitBulanII = cutiPeriode.some((cuti) => cuti.jenisCuti === 'Sakit' && cuti.selisihBulan === 1);
+    const cutiSakitBulanIII = cutiPeriode.some((cuti) => cuti.jenisCuti === 'Sakit' && cuti.selisihBulan === 2);
+    const cutiSakitLebihTigaBulan = cutiPeriode.some((cuti) => cuti.jenisCuti === 'Sakit' && cuti.selisihBulan > 2);
+    const cutiBesarBulanI = cutiPeriode.some((cuti) => cuti.jenisCuti === 'Besar' && cuti.selisihBulan === 0);
+    const cutiBesarBulanII = cutiPeriode.some((cuti) => cuti.jenisCuti === 'Besar' && cuti.selisihBulan === 1);
+    const cutiBesarBulanIII = cutiPeriode.some((cuti) => cuti.jenisCuti === 'Besar' && cuti.selisihBulan === 2);
+
     sheetData.push([
       index + 1,
       item.namaPegawai || '-',
@@ -110,7 +149,26 @@ export async function getExportDataTukin(bulan: number, tahun: number) {
       item.totalMenitTerlambat || 0,
       item.jumlahLupaAbsen || 0,
       item.jumlahAlpa || 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0,
+      cutiPeriode
+        .filter((cuti) => cuti.jenisCuti === 'Gugur Kandungan')
+        .reduce((total, cuti) => total + cuti.jumlahHariPeriode, 0),
+      cutiGugurKandunganLebihSebulan,
+      cutiPeriode
+        .filter((cuti) => cuti.jenisCuti === 'Tahunan')
+        .reduce((total, cuti) => total + cuti.jumlahHariPeriode, 0),
+      cutiPeriode
+        .filter((cuti) => cuti.jenisCuti === 'Melahirkan')
+        .reduce((total, cuti) => total + cuti.jumlahHariPeriode, 0),
+      cutiSakitBulanI,
+      Number(cutiSakitBulanII),
+      Number(cutiSakitBulanIII),
+      Number(cutiSakitLebihTigaBulan),
+      cutiBesarAPKurangSebulan,
+      Number(cutiBesarBulanI),
+      Number(cutiBesarBulanII),
+      Number(cutiBesarBulanIII),
+      0, 0, item.jumlahTdkUpc || 0, 0,
       Number(item.persentasePotongan) || 0,
       Number(item.persentaseKehadiran) || 0,
       Number(item.nominalKehadiran) || 0,

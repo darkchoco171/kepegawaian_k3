@@ -1,7 +1,7 @@
 import React from 'react';
-import { CalendarDays, Plus, CheckCircle2, Clock, XCircle, FileText } from 'lucide-react';
+import { CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { db } from '@/lib/db';
-import { pengajuanCuti, pegawai } from '@/db/schema';
+import { jenisCutiEnum, pengajuanCuti, pegawai } from '@/db/schema';
 import {getSisaCutiPegawai} from '@/app/admin/cuti/hitung-cuti';
 import { count, eq, ilike, and, desc } from 'drizzle-orm';
 import ModalTambahCuti from '@/components/ui/modal-tambah-cuti';
@@ -57,7 +57,8 @@ export default async function CutiPage(
 
   // --- SUSUN KONDISI QUERY ---
   const conditions = [];
-  if (jenis) conditions.push(eq(pengajuanCuti.jenisCuti, jenis as any));
+  const jenisValid = jenisCutiEnum.enumValues.find((value) => value === jenis);
+  if (jenisValid) conditions.push(eq(pengajuanCuti.jenisCuti, jenisValid));
   if (query) conditions.push(ilike(pegawai.namaLengkap, `%${query}%`));
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -108,9 +109,11 @@ export default async function CutiPage(
   // Pasang sisa cuti ke setiap baris data
   const dataCuti = await Promise.all(
   rawDataCuti.map(async (item) => {
-    const sisa = await getSisaCutiPegawai(item.idPegawai);
+    const tahunCuti = Number(item.tglMulai.slice(0, 4));
+    const sisa = await getSisaCutiPegawai(item.idPegawai, tahunCuti);
     return { 
       ...item, 
+      tahunCuti,
       sisaCuti: sisa.totalSisa,
       sisaN2: sisa.sisaN2,
       sisaN1: sisa.sisaN1,
@@ -202,13 +205,13 @@ export default async function CutiPage(
                           <span className="font-semibold text-slate-700">Total Sisa Cuti: {item.sisaCuti} Hari</span>
                           <div className="flex items-center gap-2 text-[10px]">
                             <span className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded border border-emerald-100">
-                              N (2026): {item.sisaN}
+                              N ({item.tahunCuti}): {item.sisaN}
                             </span>
                             <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100">
-                              N-1 (2025): {item.sisaN1}
+                              N-1 ({item.tahunCuti - 1}): {item.sisaN1}
                             </span>
                             <span className="bg-amber-50 text-amber-600 px-2 py-0.5 rounded border border-amber-100">
-                              N-2 (2024): {item.sisaN2}
+                              N-2 ({item.tahunCuti - 2}): {item.sisaN2}
                             </span>
                           </div>
                         </div>

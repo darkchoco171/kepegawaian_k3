@@ -3,32 +3,51 @@
 import React, { useState } from 'react';
 import { Plus, X, CalendarDays, Search } from 'lucide-react';
 import { createCuti } from '@/app/admin/cuti/actions';
+import { getWeekdaysByYear } from '@/app/admin/cuti/cuti-utils';
 
-export default function ModalTambahCuti({ daftarPegawai }: { daftarPegawai: any[] }) {
+type PegawaiOption = {
+  id: string;
+  namaLengkap: string;
+  nip: string | null;
+};
+
+export default function ModalTambahCuti({ daftarPegawai }: { daftarPegawai: PegawaiOption[] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [searchPegawai, setSearchPegawai] = useState('');
+  const [tglMulai, setTglMulai] = useState('');
+  const [tglSelesai, setTglSelesai] = useState('');
+
+  const jumlahHari = tglMulai && tglSelesai && tglMulai <= tglSelesai
+    ? [...getWeekdaysByYear(tglMulai, tglSelesai).values()].reduce((total, days) => total + days, 0)
+    : 0;
 
   // Filter daftar pegawai secara real-time berdasarkan ketikan (nama atau NIP)
   const filteredPegawai = daftarPegawai.filter(p => 
     p.namaLengkap.toLowerCase().includes(searchPegawai.toLowerCase()) ||
-    p.nip.toLowerCase().includes(searchPegawai.toLowerCase())
+    (p.nip || '').toLowerCase().includes(searchPegawai.toLowerCase())
   );
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    const formData = new FormData(e.currentTarget);
-    const res = await createCuti(formData);
-    setIsLoading(false);
+    try {
+      const formData = new FormData(e.currentTarget);
+      const res = await createCuti(formData);
 
-    if (res && !res.success) {
+      if (!res.success) {
+        alert(res.message);
+        return;
+      }
+
+      setIsOpen(false);
+      setSearchPegawai('');
+      setTglMulai('');
+      setTglSelesai('');
       alert(res.message);
-      return;
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsOpen(false);
-    setSearchPegawai(''); // Reset search
   };
 
   return (
@@ -103,17 +122,45 @@ export default function ModalTambahCuti({ daftarPegawai }: { daftarPegawai: any[
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Tanggal Mulai *</label>
-                  <input type="date" name="tglMulai" required className="w-full px-4 py-2 border rounded-lg text-sm" />
+                  <input
+                    type="date"
+                    name="tglMulai"
+                    value={tglMulai}
+                    onChange={(e) => setTglMulai(e.target.value)}
+                    required
+                    className="w-full px-4 py-2 border rounded-lg text-sm"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Tanggal Selesai *</label>
-                  <input type="date" name="tglSelesai" required className="w-full px-4 py-2 border rounded-lg text-sm" />
+                  <input
+                    type="date"
+                    name="tglSelesai"
+                    value={tglSelesai}
+                    onChange={(e) => setTglSelesai(e.target.value)}
+                    required
+                    className="w-full px-4 py-2 border rounded-lg text-sm"
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Jumlah Hari *</label>
-                <input type="number" name="jumlahHari" defaultValue={1} min={1} required className="w-full px-4 py-2 border rounded-lg text-sm" />
+                <label className="block text-xs font-bold text-slate-600 mb-1">Jumlah Hari Kerja *</label>
+                <input
+                  type="number"
+                  name="jumlahHari"
+                  value={jumlahHari}
+                  min={1}
+                  readOnly
+                  required
+                  className="w-full px-4 py-2 border rounded-lg text-sm bg-slate-50"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Dihitung otomatis dari hari Senin–Jumat; hari libur nasional dihitung sebagai hari kerja.
+                </p>
+                {tglMulai && tglSelesai && tglMulai <= tglSelesai && jumlahHari === 0 && (
+                  <p className="text-[10px] text-red-600 mt-1">Pilih rentang yang mencakup hari kerja.</p>
+                )}
               </div>
 
               <div>
@@ -123,7 +170,11 @@ export default function ModalTambahCuti({ daftarPegawai }: { daftarPegawai: any[
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                 <button type="button" onClick={() => setIsOpen(false)} className="px-5 py-2 hover:bg-slate-100 rounded-lg text-sm font-semibold text-slate-600">Batal</button>
-                <button type="submit" disabled={isLoading} className="bg-[#1a4b8c] hover:bg-[#123666] text-white px-5 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50">
+                <button
+                  type="submit"
+                  disabled={isLoading || (!!tglMulai && !!tglSelesai && jumlahHari === 0)}
+                  className="bg-[#1a4b8c] hover:bg-[#123666] text-white px-5 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50"
+                >
                   {isLoading ? 'Menyimpan...' : 'Simpan Pengajuan'}
                 </button>
               </div>

@@ -58,4 +58,18 @@ test.describe('Modul 04: Presensi Pegawai', () => {
     await expect(fileInput).toHaveCount(1);
   });
 
+  test('4.6 Import file Excel presensi menyimpan data harian dan menampilkan hasil', async ({ page }) => {
+    await page.locator('input[type="month"]').fill('2026-11');
+    await expect(page).toHaveURL(/bulan=2026-11/);
+
+    const dialogPromise = page.waitForEvent('dialog');
+    await page.locator('input[type="file"][accept*=".xlsx"]')
+      .setInputFiles('tests/fixtures/presensi-dummy-november-2026.xlsx');
+    const dialog = await dialogPromise;
+    const message = dialog.message();
+    await dialog.accept();
+
+    expect(message).toContain('Berhasil mengimpor 3 data absensi harian untuk 1 pegawai.');
+  });
+
 });

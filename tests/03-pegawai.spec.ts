@@ -5,6 +5,7 @@ test.describe.serial('Modul 03: Manajemen Pegawai (CRUD)', () => {
   const testNip = generateUniqueNIP();
   const testNama = generateTestPegawaiName();
   const updatedNama = `${testNama} (Updated)`;
+  let testKelasJabatanId: string;
 
   test.beforeEach(async ({ page }) => {
     await loginAdmin(page);
@@ -16,6 +17,64 @@ test.describe.serial('Modul 03: Manajemen Pegawai (CRUD)', () => {
     await expect(page.locator('input[placeholder="Cari nama atau NIP..."]')).toBeVisible();
     await expect(page.locator('button:has-text("Tambah Pegawai")')).toBeVisible();
     await expect(page.locator('table')).toBeVisible();
+  });
+
+  test('3.1a Halaman master pangkat/golongan dapat dibuka dari Manajemen Kinerja', async ({ page }) => {
+    await page.goto('/admin/manajemen-kinerja');
+    await page.getByRole('link', { name: 'Master Pangkat/Golongan' }).click();
+    await expect(page).toHaveURL('/admin/manajemen-kinerja/master-pangkat-golongan');
+    await expect(page.getByRole('heading', { name: 'Master Pangkat/Golongan & Aturan AK' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Tambah Master Pangkat/Golongan' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Angka Kredit Minimal' })).toBeVisible();
+    await expect(page.locator('input[name="angkaKreditMinimal"]').first()).toHaveAttribute('required', '');
+    await expect(page.locator('input[name="namaJabatan"]')).toBeVisible();
+  });
+
+  test('3.1b Menolak pegawai dengan jabatan yang belum terdaftar di master', async ({ page }) => {
+    await page.click('button:has-text("Tambah Pegawai")');
+    await page.fill('input[name="namaLengkap"]', generateTestPegawaiName());
+    await page.fill('input[name="nip"]', generateUniqueNIP());
+    await page.fill('input[name="namaJabatan"]', 'Jabatan Uji Belum Terdaftar');
+    await page.selectOption('select[name="idKelasJabatan"]', { index: 1 });
+    await page.fill('input[name="pangkat"]', 'Pangkat Uji');
+    await page.fill('input[name="golongan"]', 'ZZ/99');
+    await page.selectOption('select[name="jenisKepegawaian"]', 'PNS');
+    await page.click('button:has-text("Simpan Data")');
+    await expect(page.locator('p[role="alert"]')).toHaveText(
+      'Jabatan belum tersedia di master. Lengkapi data master jabatan terlebih dahulu.',
+    );
+  });
+
+  test('3.1c Menghapus master pangkat/golongan yang tidak digunakan', async ({ page }) => {
+    await page.goto('/admin/manajemen-kinerja/master-pangkat-golongan');
+    const golongan = `Z${Date.now().toString().slice(-8)}`;
+    await page.selectOption('select[name="jenisKepegawaian"]', 'NON-ASN');
+    await page.fill('input[name="pangkat"]', 'Pangkat Uji Hapus');
+    await page.fill('input[name="golongan"]', golongan);
+    await page.click('button:has-text("Simpan Master Pangkat/Golongan")');
+
+    const row = page.locator('tr', { hasText: golongan });
+    await expect(row).toBeVisible();
+    page.once('dialog', dialog => dialog.accept());
+    await row.getByRole('button', { name: `Hapus master ${golongan}` }).click();
+    await expect(row).not.toBeVisible();
+  });
+
+  test('3.1d Menghapus master jabatan yang tidak digunakan', async ({ page }) => {
+    await page.goto('/admin/manajemen-kinerja/master-pangkat-golongan');
+    const namaJabatanUji = `Jabatan Uji Hapus ${Date.now()}`;
+    await page.fill('input[name="namaJabatan"]', namaJabatanUji);
+    await page.selectOption('select[name="idKelasJabatan"]', { index: 1 });
+    await page.fill('input[name="jenisJabatan"]', 'Uji');
+    await page.click('button:has-text("Simpan Master Jabatan")');
+    await expect(page.locator('button:has-text("Simpan Master Jabatan")')).toBeEnabled();
+    await page.reload();
+
+    const row = page.locator('tr', { hasText: namaJabatanUji });
+    await expect(row).toBeVisible();
+    page.once('dialog', dialog => dialog.accept());
+    await row.getByRole('button', { name: `Hapus master jabatan ${namaJabatanUji}` }).click();
+    await expect(row).not.toBeVisible();
   });
 
   test('3.2 Fitur pencarian pegawai berfungsi', async ({ page }) => {
@@ -34,6 +93,15 @@ test.describe.serial('Modul 03: Manajemen Pegawai (CRUD)', () => {
     // Isi formulir
     await page.fill('input[name="namaLengkap"]', testNama);
     await page.fill('input[name="nip"]', testNip);
+    testKelasJabatanId = await page.locator('select[name="idKelasJabatan"] option')
+      .filter({ hasText: 'Kelas 8' })
+      .first()
+      .getAttribute('value') || '';
+    await page.fill('input[name="namaJabatan"]', 'Penguji K3 Ahli Pertama');
+    await page.selectOption('select[name="idKelasJabatan"]', testKelasJabatanId);
+    await page.fill('input[name="pangkat"]', 'Penata Muda');
+    await page.fill('input[name="golongan"]', 'III/a');
+    await page.selectOption('select[name="jenisKepegawaian"]', 'PNS');
     await page.selectOption('select[name="status"]', 'Aktif');
     await page.fill('input[name="tempatLahir"]', 'Jakarta');
     await page.fill('input[name="tglLahir"]', '1995-05-15');
@@ -72,6 +140,8 @@ test.describe.serial('Modul 03: Manajemen Pegawai (CRUD)', () => {
     await expect(page.locator(`h2:has-text("${testNama}")`)).toBeVisible();
     await expect(page.locator(`p:has-text("${testNip}")`)).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Cuti Pegawai' })).toBeVisible();
+    await expect(page.getByText('Terpakai 0 dari 36 hari')).toBeVisible();
+    await expect(page.getByText('36 Tersisa')).toBeVisible();
 
     // Navigasi kembali ke daftar pegawai
     await page.click('a:has-text("Kembali ke Data Pegawai")');
@@ -90,6 +160,11 @@ test.describe.serial('Modul 03: Manajemen Pegawai (CRUD)', () => {
     // Klik tombol Edit
     await row.locator('button[title="Edit Pegawai"]').click();
     await expect(page.locator('h3:has-text("Edit Data Pegawai")')).toBeVisible();
+    await expect(page.locator('input[name="namaJabatan"]')).toHaveValue('Penguji K3 Ahli Pertama');
+    await expect(page.locator('select[name="idKelasJabatan"]')).toHaveValue(testKelasJabatanId);
+    await expect(page.locator('input[name="pangkat"]')).toHaveValue('Penata Muda');
+    await expect(page.locator('input[name="golongan"]')).toHaveValue('III/a');
+    await expect(page.locator('select[name="jenisKepegawaian"]')).toHaveValue('PNS');
 
     // Ganti nama dan kontak
     const namaInput = page.locator('div.fixed input[name="namaLengkap"]');

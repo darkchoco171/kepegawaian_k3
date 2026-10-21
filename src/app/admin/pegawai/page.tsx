@@ -2,8 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 import { Eye } from 'lucide-react';
 import { db } from '@/lib/db';
-import { pegawai } from '@/db/schema';
-import { count, eq, ilike, and, or } from 'drizzle-orm';
+import { masterKelasJabatan, pegawai } from '@/db/schema';
+import { asc, count, eq, ilike, and, or } from 'drizzle-orm';
 import PegawaiToolbar from '@/components/ui/pegawai-toolbar';
 import ModalEditPegawai from '@/components/ui/modal-edit-pegawai';
 import FormHapusPegawai from '@/components/ui/form-hapus-pegawai';
@@ -43,10 +43,20 @@ export default async function DataPegawaiPage(
     offset,
     orderBy: (pegawai, { asc }) => [asc(pegawai.namaLengkap)],
     with: {
+      jabatan: true,
+      golongan: true,
       riwayatPendidikan: true,
       riwayatDiklat: true,
     },
   });
+
+  const kelasJabatanOptions = await db.select({
+    id: masterKelasJabatan.id,
+    kelasJabatan: masterKelasJabatan.kelasJabatan,
+    baseTukin: masterKelasJabatan.baseTukin,
+  })
+    .from(masterKelasJabatan)
+    .orderBy(asc(masterKelasJabatan.kelasJabatan));
 
   // 3. Hitung Total Data untuk Pagination yang akurat
   const totalRes = await db.select({ value: count() }).from(pegawai).where(whereClause);
@@ -65,7 +75,7 @@ export default async function DataPegawaiPage(
   return (
     <div className="space-y-6">
       {/* TOOLBAR (Search, Filter, Tombol Tambah) */}
-      <PegawaiToolbar />
+      <PegawaiToolbar kelasJabatanOptions={kelasJabatanOptions} />
 
       {/* TABLE SECTION */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -116,7 +126,10 @@ export default async function DataPegawaiPage(
                         >
                           <Eye className="w-3.5 h-3.5" /> Detail
                         </Link>
-                        <ModalEditPegawai pegawai={peg} />
+                        <ModalEditPegawai
+                          pegawai={peg}
+                          kelasJabatanOptions={kelasJabatanOptions}
+                        />
                         <FormHapusPegawai id={peg.id} nama={peg.namaLengkap} />
                       </td>
                     </tr>

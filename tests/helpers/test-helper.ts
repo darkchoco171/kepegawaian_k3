@@ -1,27 +1,34 @@
+import 'dotenv/config';
 import { Page, expect } from '@playwright/test';
 
 export const ADMIN_CREDENTIALS = {
-  nip: '199506222018011001',
-  password: 'admin123',
+  nip: process.env.E2E_ADMIN_NIP ?? '199506222018011001',
+  password: process.env.E2E_ADMIN_PASSWORD ?? process.env.ADMIN_INITIAL_PASSWORD ?? '',
 };
 
-/**
- * Helper login untuk sesi admin
- */
-export async function loginAdmin(page: Page) {
+async function submitLogin(page: Page) {
   await page.goto('/login');
-  await page.waitForLoadState('networkidle');
 
-  // Jika sudah dalam sesi login dan diredirect ke dashboard
-  if (page.url().includes('/admin/dashboard')) {
+  const currentPath = new URL(page.url()).pathname;
+  if (currentPath === '/admin/dashboard') {
     return;
   }
 
   await page.fill('input[name="nip"]', ADMIN_CREDENTIALS.nip);
   await page.fill('input[name="password"]', ADMIN_CREDENTIALS.password);
   await page.click('button[type="submit"]');
+  await page.waitForURL('**/admin/dashboard', { timeout: 30000 });
+}
 
-  // Tunggu redirect ke dashboard admin
+/**
+ * Helper login untuk sesi admin
+ */
+export async function loginAdmin(page: Page) {
+  if (!ADMIN_CREDENTIALS.password) {
+    throw new Error('Atur E2E_ADMIN_PASSWORD atau ADMIN_INITIAL_PASSWORD sebelum menjalankan E2E.');
+  }
+
+  await submitLogin(page);
   await page.waitForURL('**/admin/dashboard', { timeout: 30000 });
   await expect(page.getByRole('banner').getByText('SIMPEG K3 — Panel Administrator')).toBeVisible({ timeout: 15000 });
 }

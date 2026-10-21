@@ -163,12 +163,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Kotak Akun Demo */}
-          <div className="mt-8 p-4 border-2 border-dashed border-slate-200 bg-slate-50 rounded-xl">
-            <p className="text-slate-400 text-[10px] font-bold tracking-wider mb-1">AKUN DEMO</p>
-            <p className="text-slate-700 text-xs font-mono">199506222018011001 • admin123</p>
-          </div>
-
           <div className="mt-12 text-center">
             <p className="text-slate-400 text-[10px]">
               © 2026 SIMPEG K3 - Kementerian Ketenagakerjaan Republik Indonesia

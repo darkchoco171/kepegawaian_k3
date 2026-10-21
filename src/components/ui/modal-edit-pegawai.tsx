@@ -23,6 +23,15 @@ type DiklatFormRow = {
 
 type PegawaiEditData = {
   id: string;
+  jabatan: {
+    namaJabatan: string;
+    idKelasJabatan: string | null;
+  } | null;
+  golongan: {
+    pangkat: string | null;
+    golongan: string;
+    jenisKepegawaian: 'PNS' | 'PPPK' | 'NON-ASN' | null;
+  } | null;
   namaLengkap: string;
   nip: string;
   tanggalMulaiKerja: string | null;
@@ -47,9 +56,19 @@ type PegawaiEditData = {
   }>;
 };
 
+type KelasJabatanOption = {
+  id: string;
+  kelasJabatan: number;
+  baseTukin: string;
+};
 
-
-export default function ModalEditPegawai({ pegawai }: { pegawai: PegawaiEditData }) {
+export default function ModalEditPegawai({
+  pegawai,
+  kelasJabatanOptions,
+}: {
+  pegawai: PegawaiEditData;
+  kelasJabatanOptions: KelasJabatanOption[];
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -84,7 +103,9 @@ export default function ModalEditPegawai({ pegawai }: { pegawai: PegawaiEditData
       setIsOpen(false);
     } catch (error) {
       console.error('Gagal mengubah data pegawai:', error);
-      setSubmitError('Perubahan gagal disimpan. Periksa kembali data lalu coba lagi.');
+      setSubmitError(error instanceof Error
+        ? error.message
+        : 'Perubahan gagal disimpan. Periksa kembali data lalu coba lagi.');
     } finally {
       setIsLoading(false);
     }
@@ -126,6 +147,38 @@ export default function ModalEditPegawai({ pegawai }: { pegawai: PegawaiEditData
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">TMT Kerja</label>
                   <input type="date" name="tanggalMulaiKerja" defaultValue={pegawai.tanggalMulaiKerja || ''} className="w-full px-4 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Jabatan *</label>
+                  <input type="text" name="namaJabatan" defaultValue={pegawai.jabatan?.namaJabatan || ''} required className="w-full px-4 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Kelas Jabatan *</label>
+                  <select name="idKelasJabatan" defaultValue={pegawai.jabatan?.idKelasJabatan || ''} required className="w-full px-4 py-2 border rounded-lg text-sm bg-white">
+                    <option value="">-- Pilih Kelas Jabatan --</option>
+                    {kelasJabatanOptions.map((kelas) => (
+                      <option key={kelas.id} value={kelas.id}>
+                        Kelas {kelas.kelasJabatan} (Rp {Number(kelas.baseTukin).toLocaleString('id-ID')})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Pangkat *</label>
+                  <input type="text" name="pangkat" defaultValue={pegawai.golongan?.pangkat || ''} required className="w-full px-4 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Golongan *</label>
+                  <input type="text" name="golongan" defaultValue={pegawai.golongan?.golongan || ''} required className="w-full px-4 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Jenis Kepegawaian *</label>
+                  <select name="jenisKepegawaian" defaultValue={pegawai.golongan?.jenisKepegawaian || ''} required className="w-full px-4 py-2 border rounded-lg text-sm bg-white">
+                    <option value="">-- Pilih Jenis Kepegawaian --</option>
+                    <option value="PNS">PNS</option>
+                    <option value="PPPK">PPPK</option>
+                    <option value="NON-ASN">NON-ASN</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Sub Bagian / Tim</label>
