@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   allocateCutiByYear,
+  allocateLegacyCutiRefund,
   getCutiBucketYears,
   getWeekdayDates,
   getWeekdaysByYear,
@@ -61,4 +62,21 @@ test('allocateCutiByYear rejects requests exceeding all available balances', () 
   );
 
   assert.equal(allocation, null);
+});
+
+test('allocateLegacyCutiRefund restores older balance buckets first', () => {
+  assert.deepEqual(
+    [...allocateLegacyCutiRefund(
+      new Map([[2028, 7]]),
+      new Map([[2026, 8], [2027, 9], [2028, 12]]),
+    )!.entries()],
+    [[2026, 4], [2027, 3]],
+  );
+});
+
+test('allocateLegacyCutiRefund rejects refunds that would exceed annual quota', () => {
+  assert.equal(
+    allocateLegacyCutiRefund(new Map([[2028, 2]]), new Map([[2026, 11], [2027, 12], [2028, 12]])),
+    null,
+  );
 });

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { tukinBulanan, pegawai } from '@/db/schema';
 import { count, eq, ilike, and, desc } from 'drizzle-orm';
 import TukinToolbar from '@/components/ui/tukin-toolbar';
+import Pagination from '@/components/ui/pagination';
 import Link from 'next/link';
 
 // Helper buat format Rupiah
@@ -72,15 +73,6 @@ export default async function TukinPage(
     .where(and(eq(tukinBulanan.bulan, filterBulan), eq(tukinBulanan.tahun, filterTahun)));
     
   const totalAnggaran = allTukinBulanIni.reduce((acc, curr) => acc + Number(curr.dibayarkan || 0), 0);
-
-  // Helper untuk Tombol Next/Prev URL
-  const createPageUrl = (targetPage: number) => {
-    const params = new URLSearchParams();
-    if (query) params.set('query', query);
-    if (bulanQuery) params.set('bulan', bulanQuery);
-    params.set('page', targetPage.toString());
-    return `/admin/tukin?${params.toString()}`;
-  };
 
   return (
     <div className="space-y-6">
@@ -169,25 +161,7 @@ export default async function TukinPage(
           </table>
         </div>
         
-        {/* PAGINATION */}
-        <div className="p-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-          <p>Menampilkan halaman {page} dari {totalPages}</p>
-          <div className="flex gap-1">
-            {page > 1 ? (
-              <Link href={createPageUrl(page - 1)} className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50 font-semibold">Sebelumnya</Link>
-            ) : (
-              <button disabled className="px-3 py-1 border border-slate-100 text-slate-300 rounded">Sebelumnya</button>
-            )}
-            
-            <span className="px-3 py-1 border border-[#1a4b8c] rounded bg-[#1a4b8c] text-white font-bold">{page}</span>
-            
-            {page < totalPages ? (
-              <Link href={createPageUrl(page + 1)} className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50 font-semibold">Selanjutnya</Link>
-            ) : (
-              <button disabled className="px-3 py-1 border border-slate-100 text-slate-300 rounded">Selanjutnya</button>
-            )}
-          </div>
-        </div>
+        <Pagination totalPages={totalPages} currentPage={page} totalData={totalData} />
 
       </div>
     </div>

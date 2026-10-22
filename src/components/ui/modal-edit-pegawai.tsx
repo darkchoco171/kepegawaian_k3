@@ -5,6 +5,12 @@ import { Pencil, X } from 'lucide-react';
 import { editPegawaiData } from '@/app/admin/pegawai/actions';
 import { DAFTAR_STATUS, DAFTAR_AGAMA } from '@/lib/constants';
 import ComboboxTim from '@/components/ui/combobox-tim';
+import {
+  ComboboxJabatan,
+  ComboboxPangkatGolongan,
+  type JabatanOption,
+  type PangkatGolonganOption,
+} from '@/components/ui/combobox-master-pegawai';
 
 type PendidikanFormRow = {
   key: string;
@@ -28,6 +34,7 @@ type PegawaiEditData = {
     idKelasJabatan: string | null;
   } | null;
   golongan: {
+    id: string;
     pangkat: string | null;
     golongan: string;
     jenisKepegawaian: 'PNS' | 'PPPK' | 'NON-ASN' | null;
@@ -65,9 +72,13 @@ type KelasJabatanOption = {
 export default function ModalEditPegawai({
   pegawai,
   kelasJabatanOptions,
+  jabatanOptions,
+  pangkatGolonganOptions,
 }: {
   pegawai: PegawaiEditData;
   kelasJabatanOptions: KelasJabatanOption[];
+  jabatanOptions: JabatanOption[];
+  pangkatGolonganOptions: PangkatGolonganOption[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -150,7 +161,7 @@ export default function ModalEditPegawai({
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Jabatan *</label>
-                  <input type="text" name="namaJabatan" defaultValue={pegawai.jabatan?.namaJabatan || ''} required className="w-full px-4 py-2 border rounded-lg text-sm" />
+                  <ComboboxJabatan options={jabatanOptions} defaultValue={pegawai.jabatan?.namaJabatan || ''} />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Kelas Jabatan *</label>
@@ -163,23 +174,12 @@ export default function ModalEditPegawai({
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Pangkat *</label>
-                  <input type="text" name="pangkat" defaultValue={pegawai.golongan?.pangkat || ''} required className="w-full px-4 py-2 border rounded-lg text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Golongan *</label>
-                  <input type="text" name="golongan" defaultValue={pegawai.golongan?.golongan || ''} required className="w-full px-4 py-2 border rounded-lg text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Jenis Kepegawaian *</label>
-                  <select name="jenisKepegawaian" defaultValue={pegawai.golongan?.jenisKepegawaian || ''} required className="w-full px-4 py-2 border rounded-lg text-sm bg-white">
-                    <option value="">-- Pilih Jenis Kepegawaian --</option>
-                    <option value="PNS">PNS</option>
-                    <option value="PPPK">PPPK</option>
-                    <option value="NON-ASN">NON-ASN</option>
-                  </select>
-                </div>
+                <ComboboxPangkatGolongan
+                  options={pangkatGolonganOptions}
+                  defaultJenis={pegawai.golongan?.jenisKepegawaian || ''}
+                  defaultPangkat={pegawai.golongan?.pangkat || ''}
+                  defaultGolongan={pegawai.golongan?.golongan || ''}
+                />
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Sub Bagian / Tim</label>
                   <ComboboxTim name="jabatanTim" defaultValue={pegawai.jabatanTim || ''} />

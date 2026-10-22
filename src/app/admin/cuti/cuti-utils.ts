@@ -55,6 +55,35 @@ export function allocateCutiByYear(
   return allocation;
 }
 
+export function allocateLegacyCutiRefund(
+  weekdaysByYear: Map<number, number>,
+  balances: Map<number, number>,
+) {
+  const projectedBalances = new Map(balances);
+  const refund = new Map<number, number>();
+
+  for (const [leaveYear, weekdays] of [...weekdaysByYear.entries()].sort(([a], [b]) => a - b)) {
+    let remainingDays = weekdays;
+
+    for (const balanceYear of getCutiBucketYears(leaveYear)) {
+      const currentBalance = projectedBalances.get(balanceYear);
+      if (currentBalance === undefined) continue;
+      const availableRoom = Math.max(0, ANNUAL_CUTI_QUOTA - currentBalance);
+      const restoredDays = Math.min(availableRoom, remainingDays);
+
+      if (restoredDays > 0) {
+        projectedBalances.set(balanceYear, currentBalance + restoredDays);
+        refund.set(balanceYear, (refund.get(balanceYear) || 0) + restoredDays);
+        remainingDays -= restoredDays;
+      }
+    }
+
+    if (remainingDays > 0) return null;
+  }
+
+  return refund;
+}
+
 export function getCutiBucketYears(leaveYear: number) {
   return [leaveYear - 2, leaveYear - 1, leaveYear] as const;
 }

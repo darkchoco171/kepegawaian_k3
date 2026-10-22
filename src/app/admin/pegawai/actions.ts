@@ -10,7 +10,7 @@ import {
   riwayatPendidikan,
   sisaCuti,
 } from '@/db/schema';
-import { and, eq, ilike, notInArray } from 'drizzle-orm';
+import { and, eq, notInArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { ANNUAL_CUTI_QUOTA } from '@/app/admin/cuti/cuti-utils';
 
@@ -33,7 +33,7 @@ async function resolveMasterReferences(formData: FormData) {
     idKelasJabatan: masterJabatan.idKelasJabatan,
   })
     .from(masterJabatan)
-    .where(ilike(masterJabatan.namaJabatan, namaJabatan))
+    .where(eq(masterJabatan.namaJabatan, namaJabatan))
     .limit(1);
 
   if (!jabatanMaster) {
@@ -50,7 +50,7 @@ async function resolveMasterReferences(formData: FormData) {
     angkaKreditMinimal: masterPangkatGolongan.angkaKreditMinimal,
   })
     .from(masterPangkatGolongan)
-    .where(ilike(masterPangkatGolongan.golongan, golongan))
+    .where(eq(masterPangkatGolongan.golongan, golongan))
     .limit(1);
 
   if (!golonganMaster) {

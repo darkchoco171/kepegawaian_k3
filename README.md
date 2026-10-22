@@ -24,6 +24,10 @@ Kata sandi dapat diubah kapan saja dari halaman **Profil**. Penggantian kata san
 
 Seed akun administrator memerlukan `ADMIN_INITIAL_PASSWORD` yang disimpan di environment lokal/deployment, bukan di source control. Gunakan kata sandi sementara dan bagikan secara aman kepada administrator. Untuk E2E, atur `E2E_ADMIN_PASSWORD` atau gunakan `ADMIN_INITIAL_PASSWORD` dari environment lokal.
 
+## Sinkronisasi skema database
+
+Jika ada perubahan skema di `src/db/schema.ts`, pastikan `DATABASE_URL` menunjuk ke database yang benar lalu jalankan `npx drizzle-kit push`. Fitur hapus pengajuan cuti memerlukan tabel `alokasi_saldo_cuti` untuk menyimpan rincian pemotongan saldo per tahun.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More

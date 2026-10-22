@@ -27,6 +27,7 @@ import {
   timestamp,
   uniqueIndex,
   index,
+  primaryKey,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -200,6 +201,14 @@ export const pengajuanCuti = pgTable('pengajuan_cuti', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
+export const alokasiSaldoCuti = pgTable('alokasi_saldo_cuti', {
+  idCuti: uuid('id_cuti').notNull().references(() => pengajuanCuti.id, { onDelete: 'cascade' }),
+  tahunSaldo: integer('tahun_saldo').notNull(),
+  jumlahHari: integer('jumlah_hari').notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.idCuti, table.tahunSaldo] }),
+}));
+
 // ============================================================
 // REKAP & TUKIN
 // ============================================================
@@ -365,6 +374,14 @@ export const pengajuanCutiRelations = relations(pengajuanCuti, ({ one, many }) =
     relationName: 'approvedBy',
   }),
   presensiTerkait: many(presensiHarian),
+  alokasiSaldo: many(alokasiSaldoCuti),
+}));
+
+export const alokasiSaldoCutiRelations = relations(alokasiSaldoCuti, ({ one }) => ({
+  cuti: one(pengajuanCuti, {
+    fields: [alokasiSaldoCuti.idCuti],
+    references: [pengajuanCuti.id],
+  }),
 }));
 
 export const rekapPresensiBulananRelations = relations(rekapPresensiBulanan, ({ one, many }) => ({

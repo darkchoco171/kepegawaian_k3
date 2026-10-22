@@ -1,20 +1,52 @@
 // src/app/admin/manajemen-kinerja/page.tsx
 import { db } from '@/lib/db';
 import { tukinBulanan, pegawai, masterJabatan, riwayatAngkaKredit, masterPangkatGolongan } from '@/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { and, count, desc, eq, ilike } from 'drizzle-orm';
 import Link from 'next/link';
 import { Plus, Target, CheckCircle2, Database } from 'lucide-react';
 import { Edit } from 'lucide-react';
 import TombolHapusKinerja from '@/components/ui/tombol-hapus-kinerja';
+import KinerjaToolbar from '@/components/ui/kinerja-toolbar';
+import Pagination from '@/components/ui/pagination';
 import { hapusMasterKinerja, hapusAngkaKredit } from './actions';
 
 const formatRupiah = (angka: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
 };
 
-export default async function ManajemenKinerjaPage(props: { searchParams: Promise<{ tab?: string }> }) {
+export default async function ManajemenKinerjaPage(props: { searchParams: Promise<{ tab?: string; bulan?: string; page?: string; query?: string }> }) {
   const searchParams = await props.searchParams;
   const activeTab = searchParams.tab || 'bulanan';
+  const query = searchParams.query?.trim() || '';
+  const requestedPage = Number(searchParams.page);
+  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const limit = 10;
+  const now = new Date();
+  const currentBulan = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const requestedPeriod = searchParams.bulan || currentBulan;
+  const periodMatch = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(requestedPeriod);
+  const filterTahun = periodMatch ? Number(periodMatch[1]) : now.getFullYear();
+  const filterBulan = periodMatch ? Number(periodMatch[2]) : now.getMonth() + 1;
+  const selectedPeriod = periodMatch ? requestedPeriod : currentBulan;
+  const kinerjaWhere = and(
+    eq(tukinBulanan.bulan, filterBulan),
+    eq(tukinBulanan.tahun, filterTahun),
+    query ? ilike(pegawai.namaLengkap, `%${query}%`) : undefined
+  );
+
+  const [totalKinerjaResult, totalAngkaKreditResult] = await Promise.all([
+    db.select({ value: count() })
+      .from(tukinBulanan)
+      .leftJoin(pegawai, eq(tukinBulanan.idPegawai, pegawai.id))
+      .where(kinerjaWhere),
+    db.select({ value: count() }).from(riwayatAngkaKredit),
+  ]);
+  const totalKinerja = totalKinerjaResult[0].value;
+  const totalAngkaKredit = totalAngkaKreditResult[0].value;
+  const totalHalamanKinerja = Math.ceil(totalKinerja / limit) || 1;
+  const totalHalamanAngkaKredit = Math.ceil(totalAngkaKredit / limit) || 1;
+  const halamanKinerja = Math.min(page, totalHalamanKinerja);
+  const halamanAngkaKredit = Math.min(page, totalHalamanAngkaKredit);
 
   // --- TARIK DATA TAB 1: KINERJA BULANAN ---
   const listKinerja = await db
@@ -34,7 +66,10 @@ export default async function ManajemenKinerjaPage(props: { searchParams: Promis
     .from(tukinBulanan)
     .leftJoin(pegawai, eq(tukinBulanan.idPegawai, pegawai.id))
     .leftJoin(masterJabatan, eq(tukinBulanan.idMasterJabatan, masterJabatan.id))
-    .orderBy(desc(tukinBulanan.tahun), desc(tukinBulanan.bulan));
+    .where(kinerjaWhere)
+    .orderBy(desc(tukinBulanan.tahun), desc(tukinBulanan.bulan), desc(tukinBulanan.id))
+    .limit(limit)
+    .offset((halamanKinerja - 1) * limit);
 
   // --- TARIK DATA TAB 2: ANGKA KREDIT TAHUNAN ---
   const listAngkaKredit = await db
@@ -51,7 +86,9 @@ export default async function ManajemenKinerjaPage(props: { searchParams: Promis
     .from(riwayatAngkaKredit)
     .leftJoin(pegawai, eq(riwayatAngkaKredit.idPegawai, pegawai.id))
     .leftJoin(masterPangkatGolongan, eq(riwayatAngkaKredit.idMasterPangkatGolongan, masterPangkatGolongan.id))
-    .orderBy(desc(riwayatAngkaKredit.tahunPenilaian));
+    .orderBy(desc(riwayatAngkaKredit.tahunPenilaian), desc(riwayatAngkaKredit.id))
+    .limit(limit)
+    .offset((halamanAngkaKredit - 1) * limit);
 
   return (
     <div className="space-y-6">
@@ -98,25 +135,27 @@ export default async function ManajemenKinerjaPage(props: { searchParams: Promis
         
         {/* TAMPILAN TAB 1: KINERJA BULANAN */}
         {activeTab === 'bulanan' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200">
-                  <th className="py-3 px-4 whitespace-nowrap">Periode</th>
-                  <th className="py-3 px-4">Pegawai & Jabatan</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Hasil Kerja</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Perilaku Kerja</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Predikat Capaian</th>
-                  <th className="py-3 px-4 text-right whitespace-nowrap">Nominal Kinerja (70%)</th>
-                  <th className="py-3 px-4 text-center w-[1%] whitespace-nowrap">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {listKinerja.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-12 text-slate-400 italic">Belum ada data kinerja.</td></tr>
-                ) : (
-                  listKinerja.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50 transition">
+          <>
+            <KinerjaToolbar currentBulan={selectedPeriod} />
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200">
+                    <th className="py-3 px-4 whitespace-nowrap">Periode</th>
+                    <th className="py-3 px-4">Pegawai & Jabatan</th>
+                    <th className="py-3 px-4 whitespace-nowrap">Hasil Kerja</th>
+                    <th className="py-3 px-4 whitespace-nowrap">Perilaku Kerja</th>
+                    <th className="py-3 px-4 whitespace-nowrap">Predikat Capaian</th>
+                    <th className="py-3 px-4 text-right whitespace-nowrap">Nominal Kinerja (70%)</th>
+                    <th className="py-3 px-4 text-center w-[1%] whitespace-nowrap">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {listKinerja.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-12 text-slate-400 italic">Belum ada data kinerja.</td></tr>
+                  ) : (
+                    listKinerja.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50 transition">
                       <td className="py-3 px-4 font-bold text-slate-700 whitespace-nowrap">{item.bulan} / {item.tahun}</td>
                       <td className="py-3 px-4 min-w-[200px]">
                         <p className="font-bold text-slate-800 line-clamp-1">{item.namaPegawai}</p>
@@ -140,34 +179,37 @@ export default async function ManajemenKinerjaPage(props: { searchParams: Promis
                           <TombolHapusKinerja id={item.id} actionFn={hapusMasterKinerja} tipe="kinerja" />
                         </div>
                       </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <Pagination totalPages={totalHalamanKinerja} currentPage={halamanKinerja} totalData={totalKinerja} />
+          </>
         )}
 
         {/* TAMPILAN TAB 2: ANGKA KREDIT */}
         {activeTab === 'angka-kredit' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200">
-                  <th className="py-3 px-4 whitespace-nowrap">Tahun</th>
-                  <th className="py-3 px-4">Pegawai</th>
-                  <th className="py-3 px-4">Pangkat/Gol saat dinilai</th>
-                  <th className="py-3 px-4 font-mono text-center whitespace-nowrap">Capaian PAK</th>
-                  <th className="py-3 px-4 font-mono text-center whitespace-nowrap">Target Naik Jenjang</th>
-                  <th className="py-3 px-4 text-center whitespace-nowrap">Status</th>
-                  <th className="py-3 px-4 text-center w-[1%] whitespace-nowrap">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {listAngkaKredit.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-12 text-slate-400 italic">Belum ada riwayat Angka Kredit.</td></tr>
-                ) : (
-                  listAngkaKredit.map((item) => {
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200">
+                    <th className="py-3 px-4 whitespace-nowrap">Tahun</th>
+                    <th className="py-3 px-4">Pegawai</th>
+                    <th className="py-3 px-4">Pangkat/Gol saat dinilai</th>
+                    <th className="py-3 px-4 font-mono text-center whitespace-nowrap">Capaian PAK</th>
+                    <th className="py-3 px-4 font-mono text-center whitespace-nowrap">Target Naik Jenjang</th>
+                    <th className="py-3 px-4 text-center whitespace-nowrap">Status</th>
+                    <th className="py-3 px-4 text-center w-[1%] whitespace-nowrap">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {listAngkaKredit.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-12 text-slate-400 italic">Belum ada riwayat Angka Kredit.</td></tr>
+                  ) : (
+                    listAngkaKredit.map((item) => {
                     const pak = Number(item.nilaiPak);
                     const target = Number(item.targetAk);
                     const isMemenuhi = target > 0 && pak >= target;
@@ -203,11 +245,13 @@ export default async function ManajemenKinerjaPage(props: { searchParams: Promis
                         </td>
                       </tr>
                     );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <Pagination totalPages={totalHalamanAngkaKredit} currentPage={halamanAngkaKredit} totalData={totalAngkaKredit} />
+          </>
         )}
       </div>
     </div>

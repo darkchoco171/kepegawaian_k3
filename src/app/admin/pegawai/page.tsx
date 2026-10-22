@@ -2,11 +2,12 @@ import React from 'react';
 import Link from 'next/link';
 import { Eye } from 'lucide-react';
 import { db } from '@/lib/db';
-import { masterKelasJabatan, pegawai } from '@/db/schema';
+import { masterJabatan, masterKelasJabatan, masterPangkatGolongan, pegawai } from '@/db/schema';
 import { asc, count, eq, ilike, and, or } from 'drizzle-orm';
 import PegawaiToolbar from '@/components/ui/pegawai-toolbar';
 import ModalEditPegawai from '@/components/ui/modal-edit-pegawai';
 import FormHapusPegawai from '@/components/ui/form-hapus-pegawai';
+import Pagination from '@/components/ui/pagination';
 
 export default async function DataPegawaiPage(
   props: { searchParams: Promise<{ page?: string; query?: string; tim?: string }> }
@@ -50,32 +51,43 @@ export default async function DataPegawaiPage(
     },
   });
 
-  const kelasJabatanOptions = await db.select({
-    id: masterKelasJabatan.id,
-    kelasJabatan: masterKelasJabatan.kelasJabatan,
-    baseTukin: masterKelasJabatan.baseTukin,
-  })
-    .from(masterKelasJabatan)
-    .orderBy(asc(masterKelasJabatan.kelasJabatan));
+  const [kelasJabatanOptions, jabatanOptions, pangkatGolonganOptions] = await Promise.all([
+    db.select({
+      id: masterKelasJabatan.id,
+      kelasJabatan: masterKelasJabatan.kelasJabatan,
+      baseTukin: masterKelasJabatan.baseTukin,
+    })
+      .from(masterKelasJabatan)
+      .orderBy(asc(masterKelasJabatan.kelasJabatan)),
+    db.select({
+      id: masterJabatan.id,
+      namaJabatan: masterJabatan.namaJabatan,
+    })
+      .from(masterJabatan)
+      .orderBy(asc(masterJabatan.namaJabatan)),
+    db.select({
+      id: masterPangkatGolongan.id,
+      jenisKepegawaian: masterPangkatGolongan.jenisKepegawaian,
+      pangkat: masterPangkatGolongan.pangkat,
+      golongan: masterPangkatGolongan.golongan,
+    })
+      .from(masterPangkatGolongan)
+      .orderBy(asc(masterPangkatGolongan.urutanJenjang)),
+  ]);
 
   // 3. Hitung Total Data untuk Pagination yang akurat
   const totalRes = await db.select({ value: count() }).from(pegawai).where(whereClause);
   const totalPegawai = totalRes[0].value;
   const totalPages = Math.ceil(totalPegawai / limit) || 1;
 
-  // Helper buat bikin URL pagination yang nyimpen state search & filter
-  const createPageUrl = (targetPage: number) => {
-    const params = new URLSearchParams();
-    if (query) params.set('query', query);
-    if (tim) params.set('tim', tim);
-    params.set('page', targetPage.toString());
-    return `/admin/pegawai?${params.toString()}`;
-  };
-
   return (
     <div className="space-y-6">
       {/* TOOLBAR (Search, Filter, Tombol Tambah) */}
-      <PegawaiToolbar kelasJabatanOptions={kelasJabatanOptions} />
+      <PegawaiToolbar
+        kelasJabatanOptions={kelasJabatanOptions}
+        jabatanOptions={jabatanOptions}
+        pangkatGolonganOptions={pangkatGolonganOptions}
+      />
 
       {/* TABLE SECTION */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -129,6 +141,8 @@ export default async function DataPegawaiPage(
                         <ModalEditPegawai
                           pegawai={peg}
                           kelasJabatanOptions={kelasJabatanOptions}
+                          jabatanOptions={jabatanOptions}
+                          pangkatGolonganOptions={pangkatGolonganOptions}
                         />
                         <FormHapusPegawai id={peg.id} nama={peg.namaLengkap} />
                       </td>
@@ -140,25 +154,7 @@ export default async function DataPegawaiPage(
           </table>
         </div>
         
-        {/* PAGINATION */}
-        <div className="p-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-          <p>Menampilkan halaman {page} dari {totalPages} (Total {totalPegawai} pegawai)</p>
-          <div className="flex gap-1">
-            {page > 1 ? (
-              <Link href={createPageUrl(page - 1)} className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50 font-semibold">Sebelumnya</Link>
-            ) : (
-              <button disabled className="px-3 py-1 border border-slate-100 text-slate-300 rounded">Sebelumnya</button>
-            )}
-            
-            <span className="px-3 py-1 border border-[#1a4b8c] rounded bg-[#1a4b8c] text-white font-bold">{page}</span>
-            
-            {page < totalPages ? (
-              <Link href={createPageUrl(page + 1)} className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50 font-semibold">Selanjutnya</Link>
-            ) : (
-              <button disabled className="px-3 py-1 border border-slate-100 text-slate-300 rounded">Selanjutnya</button>
-            )}
-          </div>
-        </div>
+        <Pagination totalPages={totalPages} currentPage={page} totalData={totalPegawai} totalLabel="pegawai" />
       </div>
     </div>
   );

@@ -6,7 +6,8 @@ import {getSisaCutiPegawai} from '@/app/admin/cuti/hitung-cuti';
 import { count, eq, ilike, and, desc } from 'drizzle-orm';
 import ModalTambahCuti from '@/components/ui/modal-tambah-cuti';
 import CutiToolbar from '@/components/ui/cuti-toolbar';
-import Link from 'next/link';
+import Pagination from '@/components/ui/pagination';
+import TombolHapusCuti from '@/components/ui/tombol-hapus-cuti';
 
 // Helper buat format tanggal cuti di UI
 const formatTanggalCuti = (mulai: string, selesai: string, jumlahHari: number) => {
@@ -97,15 +98,6 @@ export default async function CutiPage(
   const statsDiajukan = await db.select({ value: count() }).from(pengajuanCuti).where(eq(pengajuanCuti.statusPengajuan, 'Diajukan'));
   const statsDitolak = await db.select({ value: count() }).from(pengajuanCuti).where(eq(pengajuanCuti.statusPengajuan, 'Ditolak'));
 
-  // Helper Pagination URL
-  const createPageUrl = (targetPage: number) => {
-    const params = new URLSearchParams();
-    if (query) params.set('query', query);
-    if (jenis) params.set('jenis', jenis);
-    params.set('page', targetPage.toString());
-    return `/admin/cuti?${params.toString()}`;
-  };
-
   // Pasang sisa cuti ke setiap baris data
   const dataCuti = await Promise.all(
   rawDataCuti.map(async (item) => {
@@ -180,12 +172,13 @@ export default async function CutiPage(
                 <th className="py-4 px-6">Durasi</th>
                 <th className="py-4 px-6">Alasan</th>
                 <th className="py-4 px-6 text-center">Status</th>
+                <th className="py-4 px-6 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {dataCuti.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-10 text-slate-500 italic">
+                  <td colSpan={7} className="text-center py-10 text-slate-500 italic">
                     Belum ada data pengajuan cuti yang tercatat.
                   </td>
                 </tr>
@@ -227,6 +220,9 @@ export default async function CutiPage(
                           {item.statusPengajuan}
                         </span>
                       </td>
+                      <td className="py-3 px-6 text-center">
+                        <TombolHapusCuti id={item.id} />
+                      </td>
                     </tr>
                   );
                 })
@@ -235,25 +231,7 @@ export default async function CutiPage(
           </table>
         </div>
         
-        {/* PAGINATION */}
-        <div className="p-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-          <p>Menampilkan halaman {page} dari {totalPages} (Total {totalData} pengajuan)</p>
-          <div className="flex gap-1">
-            {page > 1 ? (
-              <Link href={createPageUrl(page - 1)} className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50 font-semibold">Sebelumnya</Link>
-            ) : (
-              <button disabled className="px-3 py-1 border border-slate-100 text-slate-300 rounded">Sebelumnya</button>
-            )}
-            
-            <span className="px-3 py-1 border border-[#1a4b8c] rounded bg-[#1a4b8c] text-white font-bold">{page}</span>
-            
-            {page < totalPages ? (
-              <Link href={createPageUrl(page + 1)} className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50 font-semibold">Selanjutnya</Link>
-            ) : (
-              <button disabled className="px-3 py-1 border border-slate-100 text-slate-300 rounded">Selanjutnya</button>
-            )}
-          </div>
-        </div>
+        <Pagination totalPages={totalPages} currentPage={page} totalData={totalData} totalLabel="pengajuan" />
 
       </div>
     </div>

@@ -5,7 +5,7 @@ import { presensiHarian, pegawai } from '@/db/schema';
 import { count, eq, ilike, and, gte, lte, desc } from 'drizzle-orm';
 import ModalImportPresensi from '@/components/ui/modal-import-presensi';
 import PresensiToolbar from '@/components/ui/presensi-toolbar';
-import Link from 'next/link';
+import Pagination from '@/components/ui/pagination';
 
 export default async function PresensiPage(
   props: { searchParams: Promise<{ page?: string; query?: string; bulan?: string }> }
@@ -82,15 +82,6 @@ export default async function PresensiPage(
     if (row.sistemKerja === 'Cuti') statCuti += row.jumlah;
     if (row.sistemKerja === 'Alpa') statAlpa += row.jumlah;
   });
-
-  // Helper untuk Tombol Next/Prev URL
-  const createPageUrl = (targetPage: number) => {
-    const params = new URLSearchParams();
-    if (query) params.set('query', query);
-    if (bulanQuery) params.set('bulan', bulanQuery);
-    params.set('page', targetPage.toString());
-    return `/admin/presensi?${params.toString()}`;
-  };
 
   const daftarPegawai = await db.query.pegawai.findMany({
     orderBy: (pegawai, { asc }) => [asc(pegawai.namaLengkap)],
@@ -196,25 +187,7 @@ export default async function PresensiPage(
           </table>
         </div>
         
-        {/* PAGINATION */}
-        <div className="p-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-          <p>Menampilkan halaman {page} dari {totalPages} (Total {totalData} data absen)</p>
-          <div className="flex gap-1">
-            {page > 1 ? (
-              <Link href={createPageUrl(page - 1)} className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50 font-semibold">Sebelumnya</Link>
-            ) : (
-              <button disabled className="px-3 py-1 border border-slate-100 text-slate-300 rounded">Sebelumnya</button>
-            )}
-            
-            <span className="px-3 py-1 border border-[#1a4b8c] rounded bg-[#1a4b8c] text-white font-bold">{page}</span>
-            
-            {page < totalPages ? (
-              <Link href={createPageUrl(page + 1)} className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50 font-semibold">Selanjutnya</Link>
-            ) : (
-              <button disabled className="px-3 py-1 border border-slate-100 text-slate-300 rounded">Selanjutnya</button>
-            )}
-          </div>
-        </div>
+        <Pagination totalPages={totalPages} currentPage={page} totalData={totalData} totalLabel="data absen" />
 
       </div>
     </div>

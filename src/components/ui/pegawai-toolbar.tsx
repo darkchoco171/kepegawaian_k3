@@ -5,6 +5,7 @@ import { Search } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ModalTambahPegawai from '@/components/ui/modal-tambah-pegawai';
 import { DAFTAR_TIM } from '@/lib/constants';
+import type { JabatanOption, PangkatGolonganOption } from '@/components/ui/combobox-master-pegawai';
 
 type KelasJabatanOption = {
   id: string;
@@ -14,8 +15,12 @@ type KelasJabatanOption = {
 
 export default function PegawaiToolbar({
   kelasJabatanOptions,
+  jabatanOptions,
+  pangkatGolonganOptions,
 }: {
   kelasJabatanOptions: KelasJabatanOption[];
+  jabatanOptions: JabatanOption[];
+  pangkatGolonganOptions: PangkatGolonganOption[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -88,7 +93,11 @@ export default function PegawaiToolbar({
         </select>
 
         {/* Tombol Tambah Pegawai */}
-        <ModalTambahPegawai kelasJabatanOptions={kelasJabatanOptions} />
+        <ModalTambahPegawai
+          kelasJabatanOptions={kelasJabatanOptions}
+          jabatanOptions={jabatanOptions}
+          pangkatGolonganOptions={pangkatGolonganOptions}
+        />
       </div>
     </div>
   );

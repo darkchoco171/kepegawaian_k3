@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db';
 import { tukinBulanan, pegawai, masterJabatan, masterKelasJabatan, rekapPresensiBulanan } from '@/db/schema';
-import { asc, eq, and, gt } from 'drizzle-orm';
+import { asc, eq, and, gt, desc, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { kalkulasiKinerja } from '@/lib/tukin/calculation';
@@ -303,4 +303,59 @@ export async function updateAngkaKredit(id: string, formData: FormData) {
     throw new Error(error.message);
   }
   redirect('/admin/manajemen-kinerja?tab=angka-kredit');
+}
+
+// --- FUNGSI GET DATA (READ) UNTUK TABEL & PAGINATION ---
+export async function getKinerjaBulananList(page = 1, filterBulan?: number, filterTahun?: number) {
+  const limit = 10; // Tampilkan 10 baris per halaman
+  const offset = (page - 1) * limit;
+
+  // 1. Siapin array kondisi (biar filternya dinamis)
+  const conditions = [];
+  
+  // Kalau admin milih bulan di toolbar, masukin ke filter
+  if (filterBulan) {
+    conditions.push(eq(tukinBulanan.bulan, filterBulan));
+  }
+  
+  // Kalau admin milih tahun, masukin ke filter
+  if (filterTahun) {
+    conditions.push(eq(tukinBulanan.tahun, filterTahun));
+  }
+
+  try {
+    // 2. Tarik Data Utama (dilengkapi Limit & Offset)
+    const data = await db
+      .select({
+        id: tukinBulanan.id,
+        bulan: tukinBulanan.bulan,
+        tahun: tukinBulanan.tahun,
+        hasilKerja: tukinBulanan.hasilKerja,
+        perilakuKerja: tukinBulanan.perilakuKerja,
+        capaianKinerja: tukinBulanan.capaianKinerja,
+        persentaseKinerja: tukinBulanan.persentaseKinerja,
+        nominalKinerja: tukinBulanan.nominalKinerja,
+        namaPegawai: pegawai.namaLengkap,
+        nip: pegawai.nip,
+      })
+      .from(tukinBulanan)
+      .leftJoin(pegawai, eq(tukinBulanan.idPegawai, pegawai.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .limit(limit)
+      .offset(offset)
+      .orderBy(desc(tukinBulanan.tahun), desc(tukinBulanan.bulan)); // Urutin dari yang terbaru
+
+    // 3. Tarik Total Data Keseluruhan (buat ngitung butuh berapa halaman pagination)
+    const [{ count }] = await db
+      .select({ count: sql`count(*)` })
+      .from(tukinBulanan)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+      
+    const totalPages = Math.ceil(Number(count) / limit);
+
+    return { data, totalPages };
+  } catch (error: any) {
+    console.error('Error getKinerjaBulananList:', error);
+    throw new Error('Gagal menarik data kinerja bulanan');
+  }
 }

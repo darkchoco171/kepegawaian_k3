@@ -1,9 +1,11 @@
 'use server';
 
 import { randomUUID } from 'node:crypto';
+import { getServerSession } from 'next-auth';
 import { and, eq, gte, lte } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import {
+  alokasiSaldoCuti,
   jenisCutiEnum,
   masterJabatan,
   masterKelasJabatan,
@@ -15,9 +17,11 @@ import {
   tukinBulanan,
 } from '@/db/schema';
 import { revalidatePath } from 'next/cache';
+import { authOptions } from '@/lib/auth-options';
 import { kalkulasiKehadiran } from '@/lib/tukin/calculation';
 import {
   allocateCutiByYear,
+  allocateLegacyCutiRefund,
   ANNUAL_CUTI_QUOTA,
   getCutiBucketYears,
   getWeekdayDates,
@@ -207,6 +211,50 @@ async function updateMonthlyRecaps(idPegawai: string, leave: {
   return [...affectedMonths.values()];
 }
 
+async function updateMonthlyTukin(
+  idPegawai: string,
+  affectedMonths: { year: number; month: number }[],
+) {
+  for (const { month, year } of affectedMonths) {
+    const [rekap] = await db
+      .select({
+        id: rekapPresensiBulanan.id,
+        nominalKehadiran: rekapPresensiBulanan.nominalKehadiran,
+      })
+      .from(rekapPresensiBulanan)
+      .where(and(
+        eq(rekapPresensiBulanan.idPegawai, idPegawai),
+        eq(rekapPresensiBulanan.bulan, month),
+        eq(rekapPresensiBulanan.tahun, year),
+      ))
+      .limit(1);
+    const [tukin] = await db
+      .select({
+        id: tukinBulanan.id,
+        nominalKinerja: tukinBulanan.nominalKinerja,
+      })
+      .from(tukinBulanan)
+      .where(and(
+        eq(tukinBulanan.idPegawai, idPegawai),
+        eq(tukinBulanan.bulan, month),
+        eq(tukinBulanan.tahun, year),
+      ))
+      .limit(1);
+
+    if (rekap && tukin) {
+      await db.update(tukinBulanan)
+        .set({
+          idRekapPresensiBulanan: rekap.id,
+          dibayarkan: (
+            Number(tukin.nominalKinerja || 0) + Number(rekap.nominalKehadiran || 0)
+          ).toFixed(2),
+          updatedAt: new Date(),
+        })
+        .where(eq(tukinBulanan.id, tukin.id));
+    }
+  }
+}
+
 export async function createCuti(formData: FormData) {
   const idPegawai = String(formData.get('idPegawai') || '');
   const jenisCutiValue = String(formData.get('jenisCuti') || '');
@@ -343,6 +391,15 @@ export async function createCuti(formData: FormData) {
         alasan: alasan || null,
         statusPengajuan: 'Disetujui',
       }),
+      ...(balanceAllocation.size > 0
+        ? [db.insert(alokasiSaldoCuti).values(
+          [...balanceAllocation.entries()].map(([tahunSaldo, jumlahHari]) => ({
+            idCuti: newCutiId,
+            tahunSaldo,
+            jumlahHari,
+          })),
+        )]
+        : []),
       db.insert(presensiHarian).values(attendanceRows).onConflictDoUpdate({
         target: [presensiHarian.idPegawai, presensiHarian.tgl],
         set: {
@@ -375,45 +432,7 @@ export async function createCuti(formData: FormData) {
         tglMulai,
         tglSelesai,
       }, weekdays);
-
-      for (const { month, year } of affectedMonths) {
-        const [rekap] = await db
-          .select({
-            id: rekapPresensiBulanan.id,
-            nominalKehadiran: rekapPresensiBulanan.nominalKehadiran,
-          })
-          .from(rekapPresensiBulanan)
-          .where(and(
-            eq(rekapPresensiBulanan.idPegawai, idPegawai),
-            eq(rekapPresensiBulanan.bulan, month),
-            eq(rekapPresensiBulanan.tahun, year),
-          ))
-          .limit(1);
-        const [tukin] = await db
-          .select({
-            id: tukinBulanan.id,
-            nominalKinerja: tukinBulanan.nominalKinerja,
-          })
-          .from(tukinBulanan)
-          .where(and(
-            eq(tukinBulanan.idPegawai, idPegawai),
-            eq(tukinBulanan.bulan, month),
-            eq(tukinBulanan.tahun, year),
-          ))
-          .limit(1);
-
-        if (rekap && tukin) {
-          await db.update(tukinBulanan)
-            .set({
-              idRekapPresensiBulanan: rekap.id,
-              dibayarkan: (
-                Number(tukin.nominalKinerja || 0) + Number(rekap.nominalKehadiran || 0)
-              ).toFixed(2),
-              updatedAt: new Date(),
-            })
-            .where(eq(tukinBulanan.id, tukin.id));
-        }
-      }
+      await updateMonthlyTukin(idPegawai, affectedMonths);
     } catch (error) {
       console.error('Pengajuan tersimpan, tetapi rekap bulanan gagal diperbarui:', error);
       followUpWarning = ' Data cuti dan presensi tersimpan, tetapi rekap bulanan gagal diperbarui; hubungi administrator.';
@@ -433,6 +452,143 @@ export async function createCuti(formData: FormData) {
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Terjadi kesalahan saat menyimpan pengajuan cuti.',
+    };
+  }
+}
+
+export async function hapusCuti(idCuti: string): Promise<{ success: boolean; message: string }> {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== 'admin') {
+    return { success: false, message: 'Hanya admin yang dapat menghapus pengajuan cuti.' };
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idCuti)) {
+    return { success: false, message: 'ID pengajuan cuti tidak valid.' };
+  }
+
+  try {
+    const [cuti] = await db.select({
+      id: pengajuanCuti.id,
+      idPegawai: pengajuanCuti.idPegawai,
+      jenisCuti: pengajuanCuti.jenisCuti,
+      tglMulai: pengajuanCuti.tglMulai,
+      tglSelesai: pengajuanCuti.tglSelesai,
+      statusPengajuan: pengajuanCuti.statusPengajuan,
+    })
+      .from(pengajuanCuti)
+      .where(eq(pengajuanCuti.id, idCuti))
+      .limit(1);
+
+    if (!cuti) {
+      return { success: false, message: 'Pengajuan cuti tidak ditemukan.' };
+    }
+
+    const weekdays = getWeekdayDates(cuti.tglMulai, cuti.tglSelesai);
+    const isAnnualBalanceLeave = cuti.statusPengajuan === 'Disetujui'
+      && (cuti.jenisCuti === 'Tahunan' || cuti.jenisCuti === 'Sakit');
+    let refunds = new Map<number, number>();
+
+    if (isAnnualBalanceLeave) {
+      const [allocations, balanceRows] = await Promise.all([
+        db.select({
+          tahunSaldo: alokasiSaldoCuti.tahunSaldo,
+          jumlahHari: alokasiSaldoCuti.jumlahHari,
+        })
+          .from(alokasiSaldoCuti)
+          .where(eq(alokasiSaldoCuti.idCuti, cuti.id)),
+        db.select({
+          id: sisaCuti.id,
+          tahun: sisaCuti.tahun,
+          sisa: sisaCuti.sisa,
+        })
+          .from(sisaCuti)
+          .where(eq(sisaCuti.idPegawai, cuti.idPegawai)),
+      ]);
+
+      const balances = new Map(balanceRows.map((row) => [row.tahun, row.sisa]));
+      if (allocations.length > 0) {
+        refunds = new Map(allocations.map(({ tahunSaldo, jumlahHari }) => [tahunSaldo, jumlahHari]));
+      } else {
+        const legacyRefund = allocateLegacyCutiRefund(
+          getWeekdaysByYear(cuti.tglMulai, cuti.tglSelesai),
+          balances,
+        );
+        if (!legacyRefund) {
+          return {
+            success: false,
+            message: 'Saldo pengajuan lama tidak cukup untuk menentukan refund N-2, N-1, dan N dengan aman. Saldo perlu diperiksa dan dikoreksi manual sebelum pengajuan ini dihapus.',
+          };
+        }
+        refunds = legacyRefund;
+      }
+
+      const refundTotal = [...refunds.values()].reduce((total, days) => total + days, 0);
+      if (refundTotal !== weekdays.length) {
+        return {
+          success: false,
+          message: 'Rincian pemotongan saldo cuti tidak sesuai dengan durasi pengajuan. Penghapusan dibatalkan agar saldo tidak berubah keliru.',
+        };
+      }
+
+      const balanceByYear = new Map(balanceRows.map((row) => [row.tahun, row]));
+      const balanceMutations = [...refunds.entries()].map(([tahun, jumlahHari]) => {
+        const row = balanceByYear.get(tahun);
+        if (row) {
+          return db.update(sisaCuti)
+            .set({ sisa: row.sisa + jumlahHari, updatedAt: new Date() })
+            .where(eq(sisaCuti.id, row.id));
+        }
+
+        return db.insert(sisaCuti).values({
+          id: randomUUID(),
+          idPegawai: cuti.idPegawai,
+          tahun,
+          sisa: jumlahHari,
+          updatedAt: new Date(),
+        });
+      });
+
+      const mutations = [
+        ...balanceMutations,
+        db.delete(presensiHarian).where(eq(presensiHarian.idCuti, cuti.id)),
+        db.delete(pengajuanCuti).where(eq(pengajuanCuti.id, cuti.id)),
+      ];
+      const [firstMutation, ...remainingMutations] = mutations;
+      if (!firstMutation) throw new Error('Tidak ada operasi penghapusan cuti yang disiapkan.');
+      await db.batch([firstMutation, ...remainingMutations]);
+    } else {
+      await db.batch([
+        db.delete(presensiHarian).where(eq(presensiHarian.idCuti, cuti.id)),
+        db.delete(pengajuanCuti).where(eq(pengajuanCuti.id, cuti.id)),
+      ]);
+    }
+
+    let followUpWarning = '';
+    try {
+      const affectedMonths = await updateMonthlyRecaps(cuti.idPegawai, {
+        jenisCuti: cuti.jenisCuti,
+        tglMulai: cuti.tglMulai,
+        tglSelesai: cuti.tglSelesai,
+      }, weekdays);
+      await updateMonthlyTukin(cuti.idPegawai, affectedMonths);
+    } catch (error) {
+      console.error('Pengajuan cuti dihapus, tetapi rekap bulanan gagal diperbarui:', error);
+      followUpWarning = ' Rekap bulanan gagal diperbarui; hubungi administrator.';
+    }
+
+    revalidatePath('/admin/cuti');
+    revalidatePath('/admin/presensi');
+    revalidatePath('/admin/tukin');
+    revalidatePath(`/admin/pegawai/${cuti.idPegawai}`);
+
+    return {
+      success: true,
+      message: `Pengajuan cuti dihapus${isAnnualBalanceLeave ? ' dan saldo cuti dikembalikan' : ''}; presensi terkait juga dihapus.${followUpWarning}`,
+    };
+  } catch (error) {
+    console.error('Gagal menghapus pengajuan cuti:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Terjadi kesalahan saat menghapus pengajuan cuti.',
     };
   }
 }
