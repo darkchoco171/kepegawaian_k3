@@ -47,10 +47,24 @@ export const jenisCutiEnum = pgEnum('jenis_cuti', [
 export const statusPengajuanEnum = pgEnum('status_pengajuan', [
   'Diajukan', 'Disetujui', 'Ditolak',
 ]);
+export const namaJenjangEnum = pgEnum('nama_jenjang_enum', [
+  // Rumpun Keahlian
+  'Ahli Pertama', 'Ahli Muda', 'Ahli Madya', 'Ahli Utama',
+  // Rumpun Keterampilan
+  'Pemula', 'Terampil', 'Mahir', 'Penyelia'
+]);
 
 // ============================================================
 // MASTER DATA
 // ============================================================
+
+export const masterJenjang = pgTable('master_jenjang', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  namaJenjang: namaJenjangEnum('nama_jenjang').notNull(),
+  koefisienTahunan: numeric('koefisien_tahunan', { precision: 10, scale: 3 }).notNull(),
+  targetAkNaik: numeric('target_ak_naik', { precision: 10, scale: 3 }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
 
 export const masterKelasJabatan = pgTable('master_kelas_jabatan', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -74,6 +88,7 @@ export const masterPangkatGolongan = pgTable('master_pangkat_golongan', {
   id: uuid('id').primaryKey().defaultRandom(),
   // satu-satunya tempat status PNS/PPPK disimpan -- pegawai TIDAK punya kolom
   // ini sendiri, statusnya otomatis ikut lewat relasi pegawai.idGolongan
+  idMasterJenjang: uuid('id_master_jenjang').references(() => masterJenjang.id),
   jenisKepegawaian: varchar('jenis_kepegawaian', { enum: ['PNS', 'PPPK', 'NON-ASN'] }),
   pangkat: text('pangkat'),
   golongan: varchar('golongan', { length: 10 }).notNull(),
@@ -213,6 +228,20 @@ export const alokasiSaldoCuti = pgTable('alokasi_saldo_cuti', {
 // REKAP & TUKIN
 // ============================================================
 
+export const capaianPakBulanan = pgTable('capaian_pak_bulanan', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id, { onDelete: 'cascade' }),
+  idMasterJenjang: uuid('id_master_jenjang').notNull().references(() => masterJenjang.id),
+  bulan: integer('bulan').notNull(),
+  tahun: integer('tahun').notNull(),
+  predikat: text('predikat').notNull(), // cth: 'Sangat Baik', 'Baik'
+  nilaiAkBulanan: numeric('nilai_ak_bulanan', { precision: 10, scale: 3 }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  pegawaiPeriodeUnique: uniqueIndex('capaian_pak_bulanan_pegawai_periode_unique').on(table.idPegawai, table.bulan, table.tahun),
+}));
+
 export const rekapPresensiBulanan = pgTable('rekap_presensi_bulanan', {
   id: uuid('id').primaryKey().defaultRandom(),
   idPegawai: uuid('id_pegawai').notNull().references(() => pegawai.id, { onDelete: 'cascade' }),
@@ -297,9 +326,30 @@ export const masterJabatanRelations = relations(masterJabatan, ({ one, many }) =
   tukinBulanan: many(tukinBulanan),
 }));
 
-export const masterPangkatGolonganRelations = relations(masterPangkatGolongan, ({ many }) => ({
+export const masterPangkatGolonganRelations = relations(masterPangkatGolongan, ({ one, many }) => ({
+  jenjang: one(masterJenjang, {
+    fields: [masterPangkatGolongan.idMasterJenjang],
+    references: [masterJenjang.id],
+  }),
   pegawai: many(pegawai),
   riwayatAngkaKredit: many(riwayatAngkaKredit),
+}));
+
+// Tambah relasi masterjenjang:
+export const masterJenjangRelations = relations(masterJenjang, ({ many }) => ({
+  capaianPakBulanan: many(capaianPakBulanan),
+  pangkatGolongan: many(masterPangkatGolongan),
+}));
+
+export const capaianPakBulananRelations = relations(capaianPakBulanan, ({ one }) => ({
+  pegawai: one(pegawai, {
+    fields: [capaianPakBulanan.idPegawai],
+    references: [pegawai.id],
+  }),
+  jenjang: one(masterJenjang, {
+    fields: [capaianPakBulanan.idMasterJenjang],
+    references: [masterJenjang.id],
+  }),
 }));
 
 export const pegawaiRelations = relations(pegawai, ({ one, many }) => ({
@@ -322,6 +372,7 @@ export const pegawaiRelations = relations(pegawai, ({ one, many }) => ({
   rekapPresensiBulanan: many(rekapPresensiBulanan),
   tukinBulanan: many(tukinBulanan),
   riwayatAngkaKredit: many(riwayatAngkaKredit),
+  capaianPakBulanan: many(capaianPakBulanan),
 }));
 
 export const usersRelations = relations(users, ({ one, many }) => ({

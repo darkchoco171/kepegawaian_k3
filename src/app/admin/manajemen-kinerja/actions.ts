@@ -1,11 +1,74 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { tukinBulanan, pegawai, masterJabatan, masterKelasJabatan, rekapPresensiBulanan } from '@/db/schema';
-import { asc, eq, and, gt, desc, sql } from 'drizzle-orm';
+import {
+  tukinBulanan,
+  pegawai,
+  masterJabatan,
+  masterKelasJabatan,
+  rekapPresensiBulanan,
+  masterPangkatGolongan,
+  masterJenjang,
+  capaianPakBulanan,
+  riwayatAngkaKredit,
+} from '@/db/schema';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { kalkulasiKinerja } from '@/lib/tukin/calculation';
+import { hitungCapaianPakBulanan, kalkulasiKinerja } from '@/lib/tukin/calculation';
+
+async function hitungTargetAkJenjang(idMasterJenjang: string | null) {
+  if (!idMasterJenjang) return 0;
+
+  const [hasil] = await db
+    .select({
+      total: sql<string>`coalesce(sum(${masterPangkatGolongan.angkaKreditMinimal}), 0)`,
+    })
+    .from(masterPangkatGolongan)
+    .where(eq(masterPangkatGolongan.idMasterJenjang, idMasterJenjang));
+
+  return Number(hasil?.total ?? 0);
+}
+
+async function simpanCapaianPakBulanan({
+  idPegawai,
+  idMasterJenjang,
+  bulan,
+  tahun,
+  predikat,
+  nilaiAkBulanan,
+}: {
+  idPegawai: string;
+  idMasterJenjang: string;
+  bulan: number;
+  tahun: number;
+  predikat: string;
+  nilaiAkBulanan: number;
+}) {
+  await db
+    .insert(capaianPakBulanan)
+    .values({
+      idPegawai,
+      idMasterJenjang,
+      bulan,
+      tahun,
+      predikat,
+      nilaiAkBulanan: nilaiAkBulanan.toFixed(3),
+    })
+    .onConflictDoUpdate({
+      target: [
+        capaianPakBulanan.idPegawai,
+        capaianPakBulanan.bulan,
+        capaianPakBulanan.tahun,
+      ],
+      set: {
+        idMasterJenjang,
+        predikat,
+        nilaiAkBulanan: nilaiAkBulanan.toFixed(3),
+        updatedAt: new Date(),
+      },
+    });
+}
 
 export async function simpanMasterKinerja(formData: FormData) {
   const idPegawai = formData.get('idPegawai') as string;
@@ -26,10 +89,14 @@ export async function simpanMasterKinerja(formData: FormData) {
     .select({
       idJabatan: pegawai.idJabatan,
       baseTukin: masterKelasJabatan.baseTukin,
+      idMasterJenjang: masterPangkatGolongan.idMasterJenjang,
+      koefisienTahunan: masterJenjang.koefisienTahunan,
     })
     .from(pegawai)
     .leftJoin(masterJabatan, eq(pegawai.idJabatan, masterJabatan.id))
     .leftJoin(masterKelasJabatan, eq(masterJabatan.idKelasJabatan, masterKelasJabatan.id))
+    .leftJoin(masterPangkatGolongan, eq(pegawai.idGolongan, masterPangkatGolongan.id))
+    .leftJoin(masterJenjang, eq(masterPangkatGolongan.idMasterJenjang, masterJenjang.id))
     .where(eq(pegawai.id, idPegawai))
     .limit(1);
 
@@ -40,6 +107,7 @@ export async function simpanMasterKinerja(formData: FormData) {
   const { idJabatan, baseTukin } = dataPegawai[0];
   const nominalDasarNum = Number(baseTukin);
   const nominalKinerjaNum = nominalDasarNum * persentaseKinerja;
+  const { idMasterJenjang, koefisienTahunan } = dataPegawai[0];
 
   // Cek apakah rekap presensi bulanan sudah ada (opsional buat data pendukung tukin)
   const rekapPresensi = await db
@@ -90,12 +158,21 @@ export async function simpanMasterKinerja(formData: FormData) {
       },
     });
 
+  if (idMasterJenjang && koefisienTahunan) {
+    await simpanCapaianPakBulanan({
+      idPegawai,
+      idMasterJenjang,
+      bulan,
+      tahun,
+      predikat: capaianKinerja,
+      nilaiAkBulanan: hitungCapaianPakBulanan(Number(koefisienTahunan), capaianKinerja),
+    });
+  }
+
   revalidatePath('/admin/manajemen-kinerja');
   revalidatePath('/admin/tukin');
   redirect('/admin/manajemen-kinerja');
 }
-
-import { riwayatAngkaKredit, masterPangkatGolongan } from '@/db/schema';
 
 // Fungsi buat nyimpen atau update Angka Kredit Tahunan Pegawai
 export async function simpanAngkaKredit(formData: FormData) {
@@ -111,11 +188,11 @@ export async function simpanAngkaKredit(formData: FormData) {
     // 1. Cari data pegawai dan urutan golongannya saat ini
     const dataPegawai = await db.select({
       idGolongan: pegawai.idGolongan,
-      urutanJenjang: masterPangkatGolongan.urutanJenjang,
-      jenisKepegawaian: masterPangkatGolongan.jenisKepegawaian,
+      idMasterJenjang: masterPangkatGolongan.idMasterJenjang,
     })
     .from(pegawai)
     .leftJoin(masterPangkatGolongan, eq(pegawai.idGolongan, masterPangkatGolongan.id))
+    .leftJoin(masterJenjang, eq(masterPangkatGolongan.idMasterJenjang, masterJenjang.id))
     .where(eq(pegawai.id, idPegawai))
     .limit(1);
 
@@ -125,22 +202,7 @@ export async function simpanAngkaKredit(formData: FormData) {
 
     const currentGolongan = dataPegawai[0];
 
-    // 2. Cari target AK (Angka Kredit) untuk jenjang BERSYARAT berikutnya
-    let targetAkNum = 0;
-    if (currentGolongan.urutanJenjang && currentGolongan.jenisKepegawaian) {
-      const nextGolongan = await db.select()
-        .from(masterPangkatGolongan)
-        .where(and(
-          eq(masterPangkatGolongan.jenisKepegawaian, currentGolongan.jenisKepegawaian),
-          gt(masterPangkatGolongan.urutanJenjang, currentGolongan.urutanJenjang),
-        ))
-        .orderBy(asc(masterPangkatGolongan.urutanJenjang))
-        .limit(1);
-
-      if (nextGolongan.length > 0 && nextGolongan[0].angkaKreditMinimal) {
-        targetAkNum = Number(nextGolongan[0].angkaKreditMinimal);
-      }
-    }
+    const targetAkNum = await hitungTargetAkJenjang(currentGolongan.idMasterJenjang);
 
     // 3. Insert atau Update (Upsert) data ke riwayat_angka_kredit
     await db.insert(riwayatAngkaKredit)
@@ -173,8 +235,31 @@ export async function simpanAngkaKredit(formData: FormData) {
 // Fungsi Hapus Penilaian Kinerja Bulanan
 export async function hapusMasterKinerja(id: string) {
   try {
+    const [dataKinerja] = await db
+      .select({
+        idPegawai: tukinBulanan.idPegawai,
+        bulan: tukinBulanan.bulan,
+        tahun: tukinBulanan.tahun,
+      })
+      .from(tukinBulanan)
+      .where(eq(tukinBulanan.id, id))
+      .limit(1);
+
+    if (dataKinerja) {
+      await db
+        .delete(capaianPakBulanan)
+        .where(and(
+          eq(capaianPakBulanan.idPegawai, dataKinerja.idPegawai),
+          eq(capaianPakBulanan.bulan, dataKinerja.bulan),
+          eq(capaianPakBulanan.tahun, dataKinerja.tahun),
+        ));
+    }
+
     await db.delete(tukinBulanan).where(eq(tukinBulanan.id, id));
     revalidatePath('/admin/manajemen-kinerja');
+    if (dataKinerja) {
+      revalidatePath(`/admin/manajemen-kinerja/cpak/${dataKinerja.idPegawai}/${dataKinerja.tahun}`);
+    }
     return { status: 'success', message: 'Data kinerja berhasil dihapus!' };
   } catch (error: any) {
     return { status: 'error', message: error.message };
@@ -207,11 +292,32 @@ export async function updateMasterKinerja(id: string, formData: FormData) {
   // kalkulasiKinerja
   const { capaianKinerja, persentaseKinerja } = kalkulasiKinerja(hasilKerja, perilakuKerja);
 
+  const [dataKinerjaLama] = await db
+    .select({
+      idPegawai: tukinBulanan.idPegawai,
+      bulan: tukinBulanan.bulan,
+      tahun: tukinBulanan.tahun,
+    })
+    .from(tukinBulanan)
+    .where(eq(tukinBulanan.id, id))
+    .limit(1);
+
+  if (!dataKinerjaLama) {
+    throw new Error('Data kinerja yang akan diperbarui tidak ditemukan.');
+  }
+
   const dataPegawai = await db
-    .select({ idJabatan: pegawai.idJabatan, baseTukin: masterKelasJabatan.baseTukin })
+    .select({
+      idJabatan: pegawai.idJabatan,
+      baseTukin: masterKelasJabatan.baseTukin,
+      idMasterJenjang: masterPangkatGolongan.idMasterJenjang,
+      koefisienTahunan: masterJenjang.koefisienTahunan,
+    })
     .from(pegawai)
     .leftJoin(masterJabatan, eq(pegawai.idJabatan, masterJabatan.id))
     .leftJoin(masterKelasJabatan, eq(masterJabatan.idKelasJabatan, masterKelasJabatan.id))
+    .leftJoin(masterPangkatGolongan, eq(pegawai.idGolongan, masterPangkatGolongan.id))
+    .leftJoin(masterJenjang, eq(masterPangkatGolongan.idMasterJenjang, masterJenjang.id))
     .where(eq(pegawai.id, idPegawai))
     .limit(1);
 
@@ -246,7 +352,43 @@ export async function updateMasterKinerja(id: string, formData: FormData) {
     })
     .where(eq(tukinBulanan.id, id));
 
+  const { idMasterJenjang, koefisienTahunan } = dataPegawai[0];
+  if (idMasterJenjang && koefisienTahunan) {
+    await simpanCapaianPakBulanan({
+      idPegawai,
+      idMasterJenjang,
+      bulan,
+      tahun,
+      predikat: capaianKinerja,
+      nilaiAkBulanan: hitungCapaianPakBulanan(Number(koefisienTahunan), capaianKinerja),
+    });
+  } else {
+    await db
+      .delete(capaianPakBulanan)
+      .where(and(
+        eq(capaianPakBulanan.idPegawai, idPegawai),
+        eq(capaianPakBulanan.bulan, bulan),
+        eq(capaianPakBulanan.tahun, tahun),
+      ));
+  }
+
+  if (
+    dataKinerjaLama.idPegawai !== idPegawai ||
+    dataKinerjaLama.bulan !== bulan ||
+    dataKinerjaLama.tahun !== tahun
+  ) {
+    await db
+      .delete(capaianPakBulanan)
+      .where(and(
+        eq(capaianPakBulanan.idPegawai, dataKinerjaLama.idPegawai),
+        eq(capaianPakBulanan.bulan, dataKinerjaLama.bulan),
+        eq(capaianPakBulanan.tahun, dataKinerjaLama.tahun),
+      ));
+  }
+
   revalidatePath('/admin/manajemen-kinerja');
+  revalidatePath(`/admin/manajemen-kinerja/cpak/${dataKinerjaLama.idPegawai}/${dataKinerjaLama.tahun}`);
+  revalidatePath(`/admin/manajemen-kinerja/cpak/${idPegawai}/${tahun}`);
   revalidatePath('/admin/tukin');
   redirect('/admin/manajemen-kinerja?tab=bulanan');
 }
@@ -262,31 +404,17 @@ export async function updateAngkaKredit(id: string, formData: FormData) {
   try {
     const dataPegawai = await db.select({
       idGolongan: pegawai.idGolongan,
-      urutanJenjang: masterPangkatGolongan.urutanJenjang,
-      jenisKepegawaian: masterPangkatGolongan.jenisKepegawaian,
+      idMasterJenjang: masterPangkatGolongan.idMasterJenjang,
     })
     .from(pegawai)
     .leftJoin(masterPangkatGolongan, eq(pegawai.idGolongan, masterPangkatGolongan.id))
+    .leftJoin(masterJenjang, eq(masterPangkatGolongan.idMasterJenjang, masterJenjang.id))
     .where(eq(pegawai.id, idPegawai))
     .limit(1);
 
     if (dataPegawai.length === 0 || !dataPegawai[0].idGolongan) throw new Error('Gagal: Golongan belum diatur!');
 
-    let targetAkNum = 0;
-    if (dataPegawai[0].urutanJenjang && dataPegawai[0].jenisKepegawaian) {
-      const nextGolongan = await db.select()
-        .from(masterPangkatGolongan)
-        .where(and(
-          eq(masterPangkatGolongan.jenisKepegawaian, dataPegawai[0].jenisKepegawaian),
-          gt(masterPangkatGolongan.urutanJenjang, dataPegawai[0].urutanJenjang),
-        ))
-        .orderBy(asc(masterPangkatGolongan.urutanJenjang))
-        .limit(1);
-
-      if (nextGolongan.length > 0 && nextGolongan[0].angkaKreditMinimal) {
-        targetAkNum = Number(nextGolongan[0].angkaKreditMinimal);
-      }
-    }
+    const targetAkNum = await hitungTargetAkJenjang(dataPegawai[0].idMasterJenjang);
 
     await db.update(riwayatAngkaKredit)
       .set({

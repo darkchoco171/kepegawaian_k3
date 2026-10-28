@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   hitungTukinDibayarkan,
+  hitungCapaianPakBulanan,
+  hitungCapaianPakTahunan,
+  hitungAkumulasiCapaianPak,
+  getPersentaseKonversiCpak,
   kalkulasiKehadiran,
   kalkulasiKehadiranDariPersentasePotongan,
   kalkulasiKinerja,
@@ -32,6 +36,46 @@ test('kalkulasiKinerja follows the full result and behavior matrix', () => {
       nominalExpected,
     );
   }
+});
+
+test('getPersentaseKonversiCpak maps performance predicates to BKN conversion rates', () => {
+  assert.equal(getPersentaseKonversiCpak('Sangat Baik'), 1.5);
+  assert.equal(getPersentaseKonversiCpak('Baik'), 1);
+  assert.equal(getPersentaseKonversiCpak('Butuh Perbaikan'), 0.75);
+  assert.equal(getPersentaseKonversiCpak('Kurang/Miss Conduct'), 0.5);
+  assert.equal(getPersentaseKonversiCpak('Sangat Kurang'), 0.5);
+  assert.throws(() => getPersentaseKonversiCpak('Tidak diketahui'), /tidak memiliki konversi CPAK/);
+});
+
+test('hitungCapaianPakBulanan applies the monthly coefficient and CPAK conversion', () => {
+  assert.equal(hitungCapaianPakBulanan(12.5, 'Sangat Baik').toFixed(3), '1.563');
+  assert.equal(hitungCapaianPakBulanan(12.5, 'Baik').toFixed(3), '1.042');
+  assert.equal(hitungCapaianPakBulanan(12.5, 'Butuh Perbaikan').toFixed(3), '0.781');
+  assert.equal(hitungCapaianPakBulanan(12.5, 'Sangat Kurang').toFixed(3), '0.521');
+});
+
+test('hitungCapaianPakTahunan applies the final predicate to all 12 months', () => {
+  assert.equal(hitungCapaianPakTahunan(37.5, 'Baik'), 37.5);
+  assert.equal(hitungCapaianPakTahunan(37.5, 'Sangat Baik'), 56.25);
+});
+
+test('hitungAkumulasiCapaianPak carries forward the same jenjang and resets after promotion', () => {
+  const akumulasi = hitungAkumulasiCapaianPak([
+    { idPegawai: 'pegawai-1', tahun: 2025, bulan: 13, idMasterJenjang: 'madya', nilaiAk: 367.91, idRiwayat: 'pak-2025' },
+    { idPegawai: 'pegawai-1', tahun: 2026, bulan: 1, idMasterJenjang: 'madya', nilaiAk: 3.125, predikat: 'Baik', koefisienTahunan: 37.5 },
+    { idPegawai: 'pegawai-1', tahun: 2026, bulan: 10, idMasterJenjang: 'madya', nilaiAk: 4.6875, predikat: 'Sangat Baik', koefisienTahunan: 37.5 },
+    { idPegawai: 'pegawai-1', tahun: 2026, bulan: 13, idMasterJenjang: 'madya', nilaiAk: 0, idRiwayat: 'pak-2026' },
+    { idPegawai: 'pegawai-1', tahun: 2027, bulan: 1, idMasterJenjang: 'utama', nilaiAk: 2.5, predikat: 'Baik', koefisienTahunan: 2.5 },
+    { idPegawai: 'pegawai-1', tahun: 2027, bulan: 13, idMasterJenjang: 'utama', nilaiAk: 0, idRiwayat: 'pak-2027' },
+    { idPegawai: 'pegawai-2', tahun: 2025, bulan: 13, idMasterJenjang: 'madya', nilaiAk: 100, idRiwayat: 'pegawai-2-pak-2025' },
+    { idPegawai: 'pegawai-2', tahun: 2026, bulan: 13, idMasterJenjang: 'madya', nilaiAk: 20, idRiwayat: 'pegawai-2-pak-2026' },
+  ]);
+
+  assert.equal(akumulasi.get('pak-2025'), 367.91);
+  assert.equal(akumulasi.get('pak-2026'), 424.16);
+  assert.equal(akumulasi.get('pak-2027'), 2.5);
+  assert.equal(akumulasi.get('pegawai-2-pak-2025'), 100);
+  assert.equal(akumulasi.get('pegawai-2-pak-2026'), 120);
 });
 
 test('kalkulasiKehadiran deducts percentage points from the 30% attendance component', () => {

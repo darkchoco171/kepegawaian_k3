@@ -21,6 +21,110 @@ export function kalkulasiKinerja(hasilKerja: string, perilakuKerja: string) {
   }
 }
 
+export function getPersentaseKonversiCpak(predikat: string) {
+  switch (predikat) {
+    case 'Sangat Baik':
+      return 1.5;
+    case 'Baik':
+      return 1;
+    case 'Butuh Perbaikan':
+      return 0.75;
+    case 'Kurang/Miss Conduct':
+    case 'Sangat Kurang':
+      return 0.5;
+    default:
+      throw new Error(`Predikat kinerja tidak memiliki konversi CPAK: ${predikat}`);
+  }
+}
+
+export function hitungCapaianPakBulanan(koefisienTahunan: number, predikat: string) {
+  return (koefisienTahunan / 12) * getPersentaseKonversiCpak(predikat);
+}
+
+export function hitungCapaianPakTahunan(koefisienTahunan: number, predikat: string) {
+  return koefisienTahunan * getPersentaseKonversiCpak(predikat);
+}
+
+export type CapaianPakAkumulasiEvent = {
+  idPegawai: string;
+  tahun: number;
+  bulan: number;
+  idMasterJenjang: string;
+  nilaiAk: number;
+  predikat?: string;
+  koefisienTahunan?: number;
+  idRiwayat?: string;
+};
+
+export function hitungAkumulasiCapaianPak(events: CapaianPakAkumulasiEvent[]) {
+  const sortedEvents = [...events].sort(
+    (a, b) =>
+      a.idPegawai.localeCompare(b.idPegawai) ||
+      a.tahun - b.tahun ||
+      a.bulan - b.bulan,
+  );
+  const akumulasiByRiwayat = new Map<string, number>();
+  const eventsPerTahun = new Map<string, CapaianPakAkumulasiEvent[]>();
+
+  for (const event of sortedEvents) {
+    const key = `${event.idPegawai}:${event.tahun}`;
+    const eventsTahun = eventsPerTahun.get(key) ?? [];
+    eventsTahun.push(event);
+    eventsPerTahun.set(key, eventsTahun);
+  }
+
+  const capaianTahunan = [...eventsPerTahun.values()].map((eventsTahun) => {
+    const bulanan = eventsTahun.filter((event) => event.bulan >= 1 && event.bulan <= 12);
+    const riwayat = eventsTahun.filter((event) => event.idRiwayat);
+    const eventTerakhir = bulanan.at(-1);
+    let eventTahunan = riwayat[0];
+
+    if (eventTerakhir) {
+      if (!eventTerakhir.predikat || eventTerakhir.koefisienTahunan === undefined) {
+        throw new Error('Predikat dan koefisien tahunan CPAK terakhir harus tersedia.');
+      }
+
+      eventTahunan = {
+          ...eventTerakhir,
+          nilaiAk: hitungCapaianPakTahunan(
+            eventTerakhir.koefisienTahunan,
+            eventTerakhir.predikat,
+          ),
+          idRiwayat: riwayat[0]?.idRiwayat,
+      };
+    }
+
+    return eventTahunan;
+  }).filter((event): event is CapaianPakAkumulasiEvent => Boolean(event))
+    .sort(
+      (a, b) =>
+        a.idPegawai.localeCompare(b.idPegawai) ||
+        a.tahun - b.tahun ||
+        a.bulan - b.bulan,
+    );
+
+  const saldoPerPegawai = new Map<string, { idMasterJenjang: string; totalAkumulasi: number }>();
+
+  for (const event of capaianTahunan) {
+    const saldo = saldoPerPegawai.get(event.idPegawai);
+    const totalSebelumnya =
+      saldo?.idMasterJenjang === event.idMasterJenjang
+        ? saldo.totalAkumulasi
+        : 0;
+    const totalAkumulasi = Number((totalSebelumnya + event.nilaiAk).toFixed(3));
+
+    saldoPerPegawai.set(event.idPegawai, {
+      idMasterJenjang: event.idMasterJenjang,
+      totalAkumulasi,
+    });
+    if (event.idRiwayat) {
+      akumulasiByRiwayat.set(event.idRiwayat, totalAkumulasi);
+    }
+  }
+
+  return akumulasiByRiwayat;
+}
+
 export function kalkulasiKehadiran(nominalDasar: number, persentasePotongan: number) {
   const persentaseKehadiran = Math.max(0, 30 - persentasePotongan * 0.3);
   const nominalKehadiran = nominalDasar * persentaseKehadiran / 100;
