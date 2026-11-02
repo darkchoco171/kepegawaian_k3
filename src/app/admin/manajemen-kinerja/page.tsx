@@ -11,7 +11,7 @@ import {
 } from '@/db/schema';
 import { and, count, desc, eq, ilike, inArray, sql } from 'drizzle-orm';
 import Link from 'next/link';
-import { Plus, Target, CheckCircle2, Database } from 'lucide-react';
+import { Plus, Target, CheckCircle2, Database, Users } from 'lucide-react';
 import { Edit } from 'lucide-react';
 import TombolHapusKinerja from '@/components/ui/tombol-hapus-kinerja';
 import KinerjaToolbar from '@/components/ui/kinerja-toolbar';
@@ -205,9 +205,14 @@ export default async function ManajemenKinerjaPage(props: { searchParams: Promis
         
         <div className="flex flex-wrap items-center gap-2">
           {activeTab === 'bulanan' ? (
-            <Link href="/admin/manajemen-kinerja/input" className="flex items-center gap-2 bg-[#1a4b8c] hover:bg-[#123666] text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm">
-              <Plus className="w-4 h-4" /> Input Kinerja Bulanan
-            </Link>
+            <>
+              <Link href="/admin/manajemen-kinerja/input" className="flex items-center gap-2 bg-[#1a4b8c] hover:bg-[#123666] text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm">
+                <Plus className="w-4 h-4" /> Input Tunggal
+              </Link>
+              <Link href={`/admin/manajemen-kinerja/input-massal?bulan=${selectedPeriod}`} className="flex items-center gap-2 border border-[#1a4b8c] text-[#1a4b8c] hover:bg-blue-50 px-4 py-2.5 rounded-xl text-sm font-semibold transition">
+                <Users className="w-4 h-4" /> Input Massal
+              </Link>
+            </>
           ) : (
             <Link href="/admin/manajemen-kinerja/input-ak" className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm">
               <Target className="w-4 h-4" /> Input Angka Kredit

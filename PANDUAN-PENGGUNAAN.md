@@ -43,7 +43,7 @@ Untuk menyiapkan perhitungan Tukin bulanan, gunakan urutan berikut:
 2. Tambahkan atau periksa data pegawai dan pastikan relasi ke master benar.
 3. Impor presensi untuk pegawai dan periode yang akan diproses.
 4. Catat cuti yang disetujui melalui **Manajemen Cuti**.
-5. Masukkan penilaian kinerja pegawai untuk bulan dan tahun yang sama.
+5. Masukkan penilaian kinerja pegawai untuk bulan dan tahun yang sama, satu per satu atau melalui input massal.
 6. Buka **Tunjangan Kinerja**, pilih periode, kemudian jalankan **Kalkulasi Tukin**.
 7. Periksa rincian pegawai dan nilai yang dibayarkan.
 8. Jika diperlukan, gunakan **Export** untuk mengunduh workbook Excel.
@@ -145,14 +145,17 @@ Setelah cuti tersimpan, sistem mencatat presensi harian berstatus **Cuti** untuk
 ## 7. Memasukkan kinerja bulanan
 
 1. Buka **Manajemen Kinerja** pada tab **Kinerja Bulanan (Tukin)**.
-2. Klik **Input Kinerja Bulanan**.
-3. Pilih pegawai, bulan, dan tahun.
+2. Pilih salah satu cara input:
+   - **Input Tunggal** untuk menilai satu pegawai.
+   - **Input Massal** untuk menampilkan daftar pegawai sekaligus.
+3. Untuk input tunggal, pilih pegawai, bulan, dan tahun. Untuk input massal, pilih periode yang akan dinilai.
 4. Pilih **Hasil Kerja** dan **Perilaku Kerja**:
    - Di Atas Ekspektasi
    - Sesuai Ekspektasi
    - Di Bawah Ekspektasi
-5. Klik **Simpan Penilaian Kinerja**.
-6. Periksa periode, predikat, persentase, dan nominal pada tabel.
+5. Untuk input tunggal, klik **Simpan Penilaian Kinerja**. Untuk input massal, isi baris pegawai yang dinilai lalu klik **Simpan Penilaian Lengkap**.
+6. Pada input massal, baris yang kedua nilainya kosong tidak diubah; jika hanya satu nilai diisi, sistem meminta kedua nilai dilengkapi. Penilaian tersimpan untuk periode tersebut akan tampil kembali dan dapat diperbarui.
+7. Periksa periode, predikat, persentase, dan nominal pada tabel.
 
 Satu pegawai memiliki satu catatan kinerja per periode. Menyimpan kembali pegawai dan periode yang sama memperbarui catatan yang ada.
 

@@ -12,10 +12,12 @@ import {
   capaianPakBulanan,
   riwayatAngkaKredit,
 } from '@/db/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, inArray, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { hitungCapaianPakBulanan, kalkulasiKinerja } from '@/lib/tukin/calculation';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 
 async function hitungTargetAkJenjang(idMasterJenjang: string | null) {
   if (!idMasterJenjang) return 0;
@@ -70,28 +72,33 @@ async function simpanCapaianPakBulanan({
     });
 }
 
-export async function simpanMasterKinerja(formData: FormData) {
-  const idPegawai = formData.get('idPegawai') as string;
-  const bulan = Number(formData.get('bulan'));
-  const tahun = Number(formData.get('tahun'));
-  const hasilKerja = formData.get('hasilKerja') as string;
-  const perilakuKerja = formData.get('perilakuKerja') as string;
+type PenilaianKerja = 'Di Atas Ekspektasi' | 'Sesuai Ekspektasi' | 'Di Bawah Ekspektasi';
 
-  if (!idPegawai || !bulan || !tahun || !hasilKerja || !perilakuKerja) {
-    throw new Error('Semua field form wajib diisi!');
-  }
+const pilihanPenilaianKerja: PenilaianKerja[] = [
+    'Di Atas Ekspektasi',
+    'Sesuai Ekspektasi',
+    'Di Bawah Ekspektasi',
+];
 
-  // 1. Hitung capaian & persentase otomatis
-  const { capaianKinerja, persentaseKinerja } = kalkulasiKinerja(hasilKerja, perilakuKerja);
+function isPenilaianKerja(value: string): value is PenilaianKerja {
+    return pilihanPenilaianKerja.includes(value as PenilaianKerja);
+}
 
-  // 2. Ambil data jabatan & base tukin pegawai saat ini
-  const dataPegawai = await db
-    .select({
-      idJabatan: pegawai.idJabatan,
-      baseTukin: masterKelasJabatan.baseTukin,
-      idMasterJenjang: masterPangkatGolongan.idMasterJenjang,
-      koefisienTahunan: masterJenjang.koefisienTahunan,
-    })
+type DataPegawaiKinerja = {
+    idJabatan: string | null;
+    baseTukin: string | null;
+    idMasterJenjang: string | null;
+    koefisienTahunan: string | null;
+};
+
+async function ambilDataPegawaiKinerja(idPegawai: string): Promise<DataPegawaiKinerja | undefined> {
+    const [data] = await db
+      .select({
+        idJabatan: pegawai.idJabatan,
+        baseTukin: masterKelasJabatan.baseTukin,
+        idMasterJenjang: masterPangkatGolongan.idMasterJenjang,
+        koefisienTahunan: masterJenjang.koefisienTahunan,
+      })
     .from(pegawai)
     .leftJoin(masterJabatan, eq(pegawai.idJabatan, masterJabatan.id))
     .leftJoin(masterKelasJabatan, eq(masterJabatan.idKelasJabatan, masterKelasJabatan.id))
@@ -100,32 +107,53 @@ export async function simpanMasterKinerja(formData: FormData) {
     .where(eq(pegawai.id, idPegawai))
     .limit(1);
 
-  if (!dataPegawai.length || !dataPegawai[0].idJabatan || !dataPegawai[0].baseTukin) {
+  return data;
+}
+
+async function simpanPenilaianKinerja({
+  idPegawai,
+  bulan,
+  tahun,
+  hasilKerja,
+  perilakuKerja,
+  dataPegawai: dataPegawaiDisiapkan,
+  idRekap: idRekapDisiapkan,
+}: {
+  idPegawai: string;
+  bulan: number;
+  tahun: number;
+  hasilKerja: PenilaianKerja;
+  perilakuKerja: PenilaianKerja;
+  dataPegawai?: DataPegawaiKinerja;
+  idRekap?: string | null;
+}) {
+  const dataPegawai = dataPegawaiDisiapkan ?? await ambilDataPegawaiKinerja(idPegawai);
+  if (!dataPegawai?.idJabatan || !dataPegawai.baseTukin) {
     throw new Error('Data jabatan atau base tukin pegawai tidak ditemukan!');
   }
 
-  const { idJabatan, baseTukin } = dataPegawai[0];
+  const { idJabatan, baseTukin } = dataPegawai;
+  const { capaianKinerja, persentaseKinerja } = kalkulasiKinerja(hasilKerja, perilakuKerja);
   const nominalDasarNum = Number(baseTukin);
   const nominalKinerjaNum = nominalDasarNum * persentaseKinerja;
-  const { idMasterJenjang, koefisienTahunan } = dataPegawai[0];
+  const { idMasterJenjang, koefisienTahunan } = dataPegawai;
 
-  // Cek apakah rekap presensi bulanan sudah ada (opsional buat data pendukung tukin)
-  const rekapPresensi = await db
-    .select({ id: rekapPresensiBulanan.id })
-    .from(rekapPresensiBulanan)
-    .where(
-      and(
-        eq(rekapPresensiBulanan.idPegawai, idPegawai),
-        eq(rekapPresensiBulanan.bulan, bulan),
-        eq(rekapPresensiBulanan.tahun, tahun)
+  let idRekap = idRekapDisiapkan;
+  if (idRekap === undefined) {
+    const [rekapPresensi] = await db
+      .select({ id: rekapPresensiBulanan.id })
+      .from(rekapPresensiBulanan)
+      .where(
+        and(
+          eq(rekapPresensiBulanan.idPegawai, idPegawai),
+          eq(rekapPresensiBulanan.bulan, bulan),
+          eq(rekapPresensiBulanan.tahun, tahun)
+        )
       )
-    )
-    .limit(1);
+      .limit(1);
+    idRekap = rekapPresensi?.id ?? null;
+  }
 
-  const idRekap = rekapPresensi.length > 0 ? rekapPresensi[0].id : null;
-
-  // 3. Upsert data ke tabel tukin_bulanan (berfungsi sebagai master data kinerja & tukin dasar)
-  // Kalau idRekap null, kita handle supaya tabel tetap bisa nyimpen data kinerja murni
   await db
     .insert(tukinBulanan)
     .values({
@@ -168,10 +196,181 @@ export async function simpanMasterKinerja(formData: FormData) {
       nilaiAkBulanan: hitungCapaianPakBulanan(Number(koefisienTahunan), capaianKinerja),
     });
   }
+}
+
+export async function simpanMasterKinerja(formData: FormData) {
+  const idPegawai = formData.get('idPegawai');
+  const bulan = Number(formData.get('bulan'));
+  const tahun = Number(formData.get('tahun'));
+  const hasilKerja = formData.get('hasilKerja');
+  const perilakuKerja = formData.get('perilakuKerja');
+
+  if (
+    typeof idPegawai !== 'string' ||
+    !idPegawai ||
+    !Number.isInteger(bulan) ||
+    bulan < 1 ||
+    bulan > 12 ||
+    !Number.isInteger(tahun) ||
+    typeof hasilKerja !== 'string' ||
+    !isPenilaianKerja(hasilKerja) ||
+    typeof perilakuKerja !== 'string' ||
+    !isPenilaianKerja(perilakuKerja)
+  ) {
+    throw new Error('Semua field form wajib diisi dengan nilai yang valid!');
+  }
+
+  await simpanPenilaianKinerja({
+    idPegawai,
+    bulan,
+    tahun,
+    hasilKerja,
+    perilakuKerja,
+  });
 
   revalidatePath('/admin/manajemen-kinerja');
   revalidatePath('/admin/tukin');
   redirect('/admin/manajemen-kinerja');
+}
+
+export type SimpanKinerjaMassalState = {
+  success?: string;
+  error?: string;
+};
+
+export async function simpanKinerjaMassal(
+  _previousState: SimpanKinerjaMassalState,
+  formData: FormData,
+): Promise<SimpanKinerjaMassalState> {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== 'admin') {
+    return { error: 'Hanya admin yang dapat menyimpan penilaian kinerja.' };
+  }
+
+  const bulan = Number(formData.get('bulan'));
+  const tahun = Number(formData.get('tahun'));
+  const idPegawaiValues = formData.getAll('idPegawai');
+  const hasilKerjaValues = formData.getAll('hasilKerja');
+  const perilakuKerjaValues = formData.getAll('perilakuKerja');
+
+  if (
+    !Number.isInteger(bulan) ||
+    bulan < 1 ||
+    bulan > 12 ||
+    !Number.isInteger(tahun) ||
+    tahun < 1900 ||
+    tahun > 9999 ||
+    idPegawaiValues.length === 0 ||
+    idPegawaiValues.length !== hasilKerjaValues.length ||
+    idPegawaiValues.length !== perilakuKerjaValues.length ||
+    idPegawaiValues.some((id) => typeof id !== 'string' || !id) ||
+    new Set(idPegawaiValues).size !== idPegawaiValues.length
+  ) {
+    return { error: 'Data periode atau daftar pegawai tidak valid. Muat ulang halaman lalu coba lagi.' };
+  }
+
+  const penilaian = idPegawaiValues.map((id, index) => {
+    const hasil = hasilKerjaValues[index];
+    const perilaku = perilakuKerjaValues[index];
+    return {
+      idPegawai: id as string,
+      hasilKerja: typeof hasil === 'string' ? hasil.trim() : '',
+      perilakuKerja: typeof perilaku === 'string' ? perilaku.trim() : '',
+    };
+  });
+  const belumLengkap = penilaian.filter(({ hasilKerja, perilakuKerja }) =>
+    Boolean(hasilKerja) !== Boolean(perilakuKerja),
+  );
+  if (belumLengkap.length > 0) {
+    return { error: 'Lengkapi kedua penilaian pada setiap baris yang mulai diisi.' };
+  }
+
+  const penilaianLengkap = penilaian.filter(({ hasilKerja, perilakuKerja }) =>
+    hasilKerja && perilakuKerja,
+  );
+  if (penilaianLengkap.length === 0) {
+    return { error: 'Belum ada penilaian lengkap untuk disimpan.' };
+  }
+  if (penilaianLengkap.some(({ hasilKerja, perilakuKerja }) =>
+    !isPenilaianKerja(hasilKerja) ||
+    !isPenilaianKerja(perilakuKerja),
+  )) {
+    return { error: 'Ada nilai penilaian yang tidak valid. Periksa kembali isian.' };
+  }
+
+  const idPegawaiTerpilih = penilaianLengkap.map(({ idPegawai }) => idPegawai);
+  let tersimpan = 0;
+  try {
+    const [dataPegawaiList, rekapPresensiList] = await Promise.all([
+      db
+        .select({
+          id: pegawai.id,
+          idJabatan: pegawai.idJabatan,
+          baseTukin: masterKelasJabatan.baseTukin,
+          idMasterJenjang: masterPangkatGolongan.idMasterJenjang,
+          koefisienTahunan: masterJenjang.koefisienTahunan,
+        })
+        .from(pegawai)
+        .leftJoin(masterJabatan, eq(pegawai.idJabatan, masterJabatan.id))
+        .leftJoin(masterKelasJabatan, eq(masterJabatan.idKelasJabatan, masterKelasJabatan.id))
+        .leftJoin(masterPangkatGolongan, eq(pegawai.idGolongan, masterPangkatGolongan.id))
+        .leftJoin(masterJenjang, eq(masterPangkatGolongan.idMasterJenjang, masterJenjang.id))
+        .where(inArray(pegawai.id, idPegawaiTerpilih)),
+      db
+        .select({
+          id: rekapPresensiBulanan.id,
+          idPegawai: rekapPresensiBulanan.idPegawai,
+        })
+        .from(rekapPresensiBulanan)
+        .where(and(
+          inArray(rekapPresensiBulanan.idPegawai, idPegawaiTerpilih),
+          eq(rekapPresensiBulanan.bulan, bulan),
+          eq(rekapPresensiBulanan.tahun, tahun),
+        )),
+    ]);
+    const dataPegawaiById = new Map(dataPegawaiList.map(({ id, ...data }) => [id, data]));
+    const idRekapByPegawai = new Map(rekapPresensiList.map(({ idPegawai, id }) => [idPegawai, id]));
+
+    const pegawaiTidakValid = penilaianLengkap.find(({ idPegawai }) => {
+      const data = dataPegawaiById.get(idPegawai);
+      return !data?.idJabatan || !data.baseTukin;
+    });
+    if (pegawaiTidakValid) {
+      return {
+        error: `Pegawai ${pegawaiTidakValid.idPegawai} belum memiliki jabatan atau Tukin dasar.`,
+      };
+    }
+
+    for (const item of penilaianLengkap) {
+      const dataPegawai = dataPegawaiById.get(item.idPegawai);
+      if (!dataPegawai || !isPenilaianKerja(item.hasilKerja) || !isPenilaianKerja(item.perilakuKerja)) {
+        return { error: 'Data penilaian berubah atau tidak valid. Muat ulang halaman lalu coba lagi.' };
+      }
+
+      await simpanPenilaianKinerja({
+        ...item,
+        bulan,
+        tahun,
+        hasilKerja: item.hasilKerja,
+        perilakuKerja: item.perilakuKerja,
+        dataPegawai,
+        idRekap: idRekapByPegawai.get(item.idPegawai) ?? null,
+      });
+      tersimpan++;
+    }
+  } catch (error) {
+    console.error('Gagal menyimpan input kinerja massal:', error);
+    return {
+      error: `Penyimpanan berhenti setelah ${tersimpan} dari ${penilaianLengkap.length} penilaian. ${error instanceof Error ? error.message : 'Terjadi kesalahan database.'}`,
+    };
+  }
+
+  revalidatePath('/admin/manajemen-kinerja');
+  revalidatePath('/admin/manajemen-kinerja/input-massal');
+  revalidatePath('/admin/tukin');
+  return {
+    success: `Berhasil menyimpan ${tersimpan} penilaian untuk periode ${bulan}/${tahun}. ${idPegawaiValues.length - penilaianLengkap.length} baris kosong tidak diubah.`,
+  };
 }
 
 // Fungsi buat nyimpen atau update Angka Kredit Tahunan Pegawai
