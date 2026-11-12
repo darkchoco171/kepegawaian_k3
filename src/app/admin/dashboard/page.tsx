@@ -192,7 +192,10 @@ export default async function AdminDashboardPage() {
                           <p className="text-[10px] text-slate-500">{peg.jabatan?.namaJabatan || peg.nip}</p>
                         </div>
                       </td>
-                      <td className="py-4 px-6 text-xs text-slate-600">{peg.jabatanTim || '-'}</td>
+                      <td className="py-4 px-6 text-xs text-slate-600">
+                        <p>{peg.namaTimKerja || '-'}</p>
+                        {peg.jabatanTim && <p className="mt-0.5 text-slate-400">{peg.jabatanTim}</p>}
+                      </td>
                       <td className="py-4 px-6">
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statCol}`}>
                           {status}

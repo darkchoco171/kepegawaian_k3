@@ -121,8 +121,9 @@ export default async function DetailPegawaiPage(
               </p>
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tim (Sub Bagian)</p>
-              <p className="font-semibold text-slate-800">{data.jabatanTim || '-'}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tim Kerja</p>
+              <p className="font-semibold text-slate-800">{data.namaTimKerja || '-'}</p>
+              <p className="text-xs text-slate-500">Jabatan Tim: {data.jabatanTim || 'Anggota'}</p>
             </div>
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TMT Mulai Kerja</p>

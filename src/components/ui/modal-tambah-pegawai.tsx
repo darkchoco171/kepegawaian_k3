@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { simpanPegawaiBaru } from '@/app/admin/pegawai/actions';
-import { DAFTAR_STATUS, DAFTAR_AGAMA } from '@/lib/constants';
+import { DAFTAR_STATUS, DAFTAR_AGAMA, DAFTAR_JABATAN_TIM } from '@/lib/constants';
 import ComboboxTim from '@/components/ui/combobox-tim';
 import {
   ComboboxJabatan,
@@ -100,8 +100,17 @@ export default function ModalTambahPegawai({
                 </div>
                 <ComboboxPangkatGolongan options={pangkatGolonganOptions} />
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Sub Bagian / Tim</label>
-                  <ComboboxTim name="jabatanTim" />
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Nama Tim Kerja</label>
+                  <ComboboxTim name="namaTimKerja" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Jabatan Tim</label>
+                  <select name="jabatanTim" defaultValue="" className="w-full px-4 py-2 border rounded-lg text-sm">
+                    <option value="">Anggota / Tidak ada peran khusus</option>
+                    {DAFTAR_JABATAN_TIM.map((jabatan) => (
+                      <option key={jabatan} value={jabatan}>{jabatan}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Status Kepegawaian</label>

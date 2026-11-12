@@ -13,6 +13,28 @@ import {
 import { and, eq, notInArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { ANNUAL_CUTI_QUOTA } from '@/app/admin/cuti/cuti-utils';
+import { DAFTAR_JABATAN_TIM } from '@/lib/constants';
+
+function getDataTimKerja(formData: FormData) {
+  let namaTimKerja = String(formData.get('namaTimKerja') || '').trim() || null;
+  const jabatanTim = String(formData.get('jabatanTim') || '').trim() || null;
+
+  if (jabatanTim && !DAFTAR_JABATAN_TIM.some((jabatan) => jabatan === jabatanTim)) {
+    throw new Error('Jabatan tim tidak valid.');
+  }
+  if (jabatanTim === 'Kasubbag TU' && namaTimKerja && namaTimKerja !== 'Tata Usaha') {
+    throw new Error('Kasubbag TU hanya dapat ditetapkan pada tim Tata Usaha.');
+  }
+  if (jabatanTim === 'Kasubbag TU') {
+    namaTimKerja = 'Tata Usaha';
+  }
+  if ((jabatanTim === 'Ketua Tim' || jabatanTim === 'Wakil Ketua Tim')
+    && namaTimKerja === 'Tata Usaha') {
+    throw new Error('Ketua atau wakil tim tidak dapat ditetapkan pada Tata Usaha.');
+  }
+
+  return { namaTimKerja, jabatanTim };
+}
 
 async function resolveMasterReferences(formData: FormData) {
   const namaJabatan = String(formData.get('namaJabatan') || '').trim();
@@ -70,6 +92,7 @@ async function resolveMasterReferences(formData: FormData) {
 // FUNGSI 1: TAMBAH PEGAWAI
 export async function simpanPegawaiBaru(formData: FormData) {
   const { idJabatan, idGolongan } = await resolveMasterReferences(formData);
+  const { namaTimKerja, jabatanTim } = getDataTimKerja(formData);
   const status = formData.get('status') as string;
   const keterangan = status === 'Aktif' ? null : status;
   const pegawaiId = randomUUID();
@@ -82,7 +105,8 @@ export async function simpanPegawaiBaru(formData: FormData) {
       nip: formData.get('nip') as string,
       idJabatan,
       idGolongan,
-      jabatanTim: (formData.get('jabatanTim') as string) || null,
+      namaTimKerja,
+      jabatanTim,
       keterangan: keterangan,
       tempatLahir: (formData.get('tempatLahir') as string) || null,
       tglLahir: (formData.get('tglLahir') as string) || null,
@@ -149,6 +173,7 @@ export async function simpanPegawaiBaru(formData: FormData) {
 // FUNGSI 2: EDIT PEGAWAI
 export async function editPegawaiData(formData: FormData) {
   const { idJabatan, idGolongan } = await resolveMasterReferences(formData);
+  const { namaTimKerja, jabatanTim } = getDataTimKerja(formData);
   const id = formData.get('id') as string; // Butuh ID buat tau siapa yang diedit
   const status = formData.get('status') as string;
   const keterangan = status === 'Aktif' ? null : status;
@@ -158,7 +183,8 @@ export async function editPegawaiData(formData: FormData) {
     nip: formData.get('nip') as string,
     idJabatan,
     idGolongan,
-    jabatanTim: (formData.get('jabatanTim') as string) || null,
+    namaTimKerja,
+    jabatanTim,
     keterangan: keterangan,
     tempatLahir: (formData.get('tempatLahir') as string) || null,
     tglLahir: (formData.get('tglLahir') as string) || null,

@@ -19,6 +19,18 @@ test.describe.serial('Modul 03: Manajemen Pegawai (CRUD)', () => {
     await expect(page.locator('table')).toBeVisible();
   });
 
+  test('3.1e Menampilkan struktur organisasi dan membuka profil dari kartu pegawai', async ({ page }) => {
+    await page.getByRole('link', { name: 'Struktur Organisasi' }).click();
+    await expect(page).toHaveURL(/view=struktur/);
+    await expect(page.getByText('Bagan Organisasi')).toBeVisible();
+    await expect(page.getByRole('heading', {
+      name: 'Akreditasi dan Pengembangan Kelembagaan K3 Bidang Keselamatan Kerja',
+    })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Kasubbag TU' })).toBeVisible();
+    await expect(page.getByText('Belum ditetapkan')).toHaveCount(0);
+    await expect(page.locator('a[href^="/admin/pegawai/"]').first()).toBeVisible();
+  });
+
   test('3.1a Halaman master pangkat/golongan dapat dibuka dari Manajemen Kinerja', async ({ page }) => {
     await page.goto('/admin/manajemen-kinerja');
     await page.getByRole('link', { name: 'Master Pangkat/Golongan' }).click();

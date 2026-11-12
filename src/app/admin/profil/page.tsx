@@ -85,7 +85,8 @@ export default async function ProfilPage() {
               <span className="font-bold text-slate-800">{j?.namaJabatan || 'Belum diset'}</span>
             </div>
             <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-500">Pangkat / Golongan</span><span className="font-medium text-slate-800">{g?.pangkat || '-'} ({g?.golongan || '-'})</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">Sub Bagian / Tim</span><span className="font-medium text-slate-800">{p.jabatanTim || '-'}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">Tim Kerja</span><span className="font-medium text-slate-800">{p.namaTimKerja || '-'}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">Jabatan Tim</span><span className="font-medium text-slate-800">{p.jabatanTim || 'Anggota'}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Mulai Kerja (TMT)</span><span className="font-medium text-slate-800">{p.tanggalMulaiKerja || '-'}</span></div>
           </div>
         </div>

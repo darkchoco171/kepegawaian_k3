@@ -18,6 +18,8 @@ export const DAFTAR_TIM = [
   "Tata Usaha",
 ];
 
+export const DAFTAR_JABATAN_TIM = ["Kasubbag TU", "Ketua Tim", "Wakil Ketua Tim"] as const;
+
 export const DAFTAR_STATUS = ["Aktif", "Cuti", "Tugas Belajar"];
 
 export const DAFTAR_AGAMA = [

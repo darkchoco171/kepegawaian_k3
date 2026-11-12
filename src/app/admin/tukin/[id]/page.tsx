@@ -91,7 +91,8 @@ export default async function DetailTukinPage(
             <div className="flex justify-between"><span className="text-slate-500">Nama Lengkap</span><span className="font-bold text-slate-800">{p?.namaLengkap}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">NIP</span><span className="font-mono text-slate-700">{p?.nip}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Pangkat / Golongan</span><span className="text-slate-700">{p?.golongan?.pangkat || '-'} ({p?.golongan?.golongan || '-'})</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">Sub Bagian / Tim</span><span className="text-slate-700">{p?.jabatanTim || '-'}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">Tim Kerja</span><span className="text-slate-700">{p?.namaTimKerja || '-'}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">Jabatan Tim</span><span className="text-slate-700">{p?.jabatanTim || 'Anggota'}</span></div>
           </div>
         </div>
 

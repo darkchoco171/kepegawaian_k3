@@ -111,6 +111,7 @@ export const pegawai = pgTable('pegawai', {
   idJabatan: uuid('id_jabatan').references(() => masterJabatan.id),
   idGolongan: uuid('id_golongan').references(() => masterPangkatGolongan.id),
   namaLengkap: text('nama_lengkap').notNull(),
+  namaTimKerja: varchar('nama_tim_kerja'),
   jabatanTim: text('jabatan_tim'),
   nip: varchar('nip', { length: 20 }).notNull(),
   tempatLahir: text('tempat_lahir'),

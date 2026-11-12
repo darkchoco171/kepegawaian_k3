@@ -54,6 +54,18 @@ async function seedPegawai() {
     }
 
     const idJabatan = row.nama_jabatan ? mapJabatan.get(String(row.nama_jabatan).toLowerCase().trim()) : null;
+    const jabatanMasterPegawai = masterJbt.find(jabatan => jabatan.id === idJabatan);
+    const jabatanTimLama = row.jabatan_tim ? String(row.jabatan_tim).trim() : null;
+    const jabatanTim = jabatanTimLama?.startsWith('Wakil Ketua Tim Kerja')
+      ? 'Wakil Ketua Tim'
+      : jabatanTimLama?.startsWith('Ketua Tim Kerja')
+        ? 'Ketua Tim'
+        : jabatanMasterPegawai?.namaJabatan === 'Kepala Sub Bagian Tata Usaha'
+          ? 'Kasubbag TU'
+          : null;
+    const namaTimKerja = jabatanTimLama
+      ?.replace(/^(?:Wakil )?Ketua Tim Kerja\s+/, '')
+      || (jabatanTim === 'Kasubbag TU' ? 'Tata Usaha' : null);
     
     let idGolongan = null;
     if (row.pangkat || row.golongan) {
@@ -87,7 +99,8 @@ async function seedPegawai() {
       const [newPegawai] = await db.insert(pegawai).values({
         idJabatan,
         idGolongan,
-        jabatanTim: row.jabatan_tim ? String(row.jabatan_tim).trim() : null,
+        namaTimKerja,
+        jabatanTim,
         nip: String(row.nip).trim(),
         namaLengkap: namaEstetik, // Mba Nisa pasti hepi liat ini!
         tempatLahir: row.tempat_lahir ? formatNamaTitleCase(String(row.tempat_lahir).trim()) : null, // Sekalian tempat lahir juga biar rapi

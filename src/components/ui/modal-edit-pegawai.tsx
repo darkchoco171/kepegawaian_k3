@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Pencil, X } from 'lucide-react';
 import { editPegawaiData } from '@/app/admin/pegawai/actions';
-import { DAFTAR_STATUS, DAFTAR_AGAMA } from '@/lib/constants';
+import { DAFTAR_STATUS, DAFTAR_AGAMA, DAFTAR_JABATAN_TIM } from '@/lib/constants';
 import ComboboxTim from '@/components/ui/combobox-tim';
 import {
   ComboboxJabatan,
@@ -42,6 +42,7 @@ type PegawaiEditData = {
   namaLengkap: string;
   nip: string;
   tanggalMulaiKerja: string | null;
+  namaTimKerja: string | null;
   jabatanTim: string | null;
   keterangan: string | null;
   tempatLahir: string | null;
@@ -181,8 +182,17 @@ export default function ModalEditPegawai({
                   defaultGolongan={pegawai.golongan?.golongan || ''}
                 />
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Sub Bagian / Tim</label>
-                  <ComboboxTim name="jabatanTim" defaultValue={pegawai.jabatanTim || ''} />
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Nama Tim Kerja</label>
+                  <ComboboxTim name="namaTimKerja" defaultValue={pegawai.namaTimKerja || ''} />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Jabatan Tim</label>
+                  <select name="jabatanTim" defaultValue={pegawai.jabatanTim || ''} className="w-full px-4 py-2 border rounded-lg text-sm">
+                    <option value="">Anggota / Tidak ada peran khusus</option>
+                    {DAFTAR_JABATAN_TIM.map((jabatan) => (
+                      <option key={jabatan} value={jabatan}>{jabatan}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Status Kepegawaian</label>
