@@ -116,6 +116,7 @@ Saat pegawai baru dibuat, aplikasi juga menyiapkan saldo cuti awal. Periksa sald
 7. Periksa tabel presensi untuk periode tersebut dan cari pegawai yang diuji.
 
 Sistem kerja yang dikenali meliputi WFO, WFH, Dinas Luar, Cuti, Upacara, dan Alpa. Pastikan tanggal, nama/NIP, dan nilai pada kolom sesuai format template.
+Tanggal pada file harus berada di bulan dan tahun yang dipilih. Jika file berisi tanggal dari periode lain, impor ditolak; pilih periode yang sesuai atau gunakan file satu bulan.
 
 > **Penting:** impor memperbarui presensi harian pada tanggal yang ada di file. Rekap bulanan yang dihasilkan dari proses impor dihitung dari baris file yang sedang diimpor. Karena itu, hindari mengimpor file parsial untuk pegawai/periode yang sudah memiliki rekap lengkap: rekapnya dapat berubah mengikuti isi file parsial tersebut. Simpan salinan file sumber sebelum impor.
 
@@ -181,7 +182,7 @@ Target dihitung berdasarkan pangkat/golongan pegawai dan aturan AK minimal pada 
 6. Periksa nilai pada tabel. Klik **Detail** pada pegawai untuk melihat base Tukin, predikat kinerja, nominal kinerja, dan rekap presensi.
 7. Jika ada perubahan kinerja/presensi/cuti, selesaikan pembaruan sumber data terlebih dahulu, kemudian jalankan kalkulasi kembali.
 
-Kalkulasi Tukin memproses pegawai yang memiliki data kinerja di bulan tersebut. Jika rekap presensi tidak ditemukan, komponen kehadiran pada proses kalkulasi massal menjadi nol.
+Kalkulasi Tukin memproses pegawai yang memiliki data kinerja di bulan tersebut. Rekap presensi harus tersedia untuk setiap pegawai yang akan dikalkulasi; jika ada yang belum memiliki rekap, kalkulasi dibatalkan dan menampilkan jumlah pegawai yang perlu diperiksa.
 
 ### Mengekspor Excel
 

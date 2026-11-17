@@ -72,19 +72,19 @@ Saat ini integration test ekspor Tukin memeriksa layout workbook 38 kolom dan ju
 4. Pastikan data harian tersimpan untuk pegawai, tanggal, dan jenis presensi yang tepat.
 5. Cocokkan rekap bulanan dengan baris dalam file yang diimpor.
 6. Impor ulang file lengkap yang sama; periksa apakah hasil tetap konsisten dan tidak menghasilkan duplikasi yang tidak diinginkan.
-7. Uji file tidak valid—misalnya NIP tidak dikenal, tanggal tidak valid, atau format kolom salah—dan pastikan kegagalan dilaporkan dengan benar.
+7. Uji file tidak valid—misalnya NIP tidak dikenal, tanggal tidak valid, tanggal di luar bulan/tahun yang dipilih, atau format kolom salah—dan pastikan kegagalan dilaporkan dengan benar.
 8. Pastikan data presensi tersebut dapat dipakai dalam kalkulasi Tukin periode yang sama.
 
-### 3.5 Pengajuan, persetujuan, dan saldo cuti
+### 3.5 Pencatatan dan saldo cuti
 
 1. Gunakan pegawai tes dengan saldo cuti yang diketahui.
-2. Ajukan cuti dengan rentang tanggal yang valid; pastikan status awalnya **Diajukan**.
-3. Setujui pengajuan dan pastikan status berubah menjadi **Disetujui**.
-4. Periksa dampaknya pada saldo dan/atau presensi sesuai alur aplikasi.
-5. Buat pengajuan tes lain dan tolak; pastikan status menjadi **Ditolak** dan tidak memberi dampak seperti pengajuan disetujui.
-6. Uji batas validasi, seperti tanggal berakhir sebelum tanggal mulai atau permintaan melebihi saldo; pastikan ditolak dengan pesan yang sesuai.
-7. Uji rentang yang melewati akhir pekan atau pergantian tahun, lalu cocokkan jumlah hari kerja dan alokasi saldo dengan aturan yang berlaku.
-8. Muat ulang halaman dan pastikan status serta saldo tetap tersimpan dengan konsisten.
+2. Buat catatan cuti melalui formulir administrator dengan rentang tanggal valid; pastikan langsung berstatus **Disetujui**.
+3. Periksa dampaknya pada saldo, alokasi saldo, presensi harian, dan rekap bulanan.
+4. Uji batas validasi, seperti tanggal berakhir sebelum tanggal mulai, rentang bertabrakan, atau permintaan melebihi saldo; pastikan ditolak dengan pesan yang sesuai.
+5. Uji rentang yang melewati akhir pekan atau pergantian tahun, lalu cocokkan jumlah hari kerja dan alokasi saldo dengan aturan yang berlaku.
+6. Muat ulang halaman dan pastikan status serta saldo tetap tersimpan dengan konsisten.
+
+Formulir administrator saat ini tidak menyediakan transisi status **Diajukan**/**Ditolak** atau alur persetujuan bertahap. Jangan jadikan transisi tersebut sebagai kriteria uji UI kecuali fitur approval sudah diimplementasikan.
 
 ### 3.6 Manajemen kinerja bulanan
 
@@ -108,13 +108,13 @@ Saat ini integration test ekspor Tukin memeriksa layout workbook 38 kolom dan ju
 2. Pastikan data presensi, cuti yang relevan, dan kinerja sudah tersedia.
 3. Jalankan kalkulasi Tukin dan catat nilai tiap komponen.
 4. Cocokkan base Tukin, persentase kinerja, komponen kehadiran, potongan, dan total dengan aturan yang berlaku.
-5. Uji pegawai yang datanya tidak lengkap; pastikan aplikasi tidak menyajikan hasil yang tampak valid tanpa penanganan yang tepat.
+5. Uji jika satu pegawai dengan penilaian kinerja belum memiliki rekap presensi; pastikan kalkulasi dibatalkan dengan pesan jumlah pegawai yang belum memiliki rekap dan tidak menghasilkan kalkulasi parsial.
 6. Ubah salah satu input tes, kalkulasi ulang, lalu pastikan nilai hasil ikut diperbarui.
 
 ### 3.9 Ekspor Tukin dan data cuti
 
 1. Siapkan data Tukin untuk periode tes dan pengajuan cuti **Disetujui** yang beririsan dengan periode itu.
-2. Siapkan cuti **Diajukan** atau **Ditolak** sebagai data pembanding.
+2. Jika tersedia melalui fixture/database tes, siapkan cuti **Diajukan** atau **Ditolak** sebagai data pembanding.
 3. Ekspor workbook untuk periode yang sama.
 4. Buka workbook dan periksa sheet, header, 38 kolom, jumlah pegawai, dan format NIP.
 5. Cocokkan nilai pada kolom cuti dengan jenis/status/tanggal cuti di aplikasi.

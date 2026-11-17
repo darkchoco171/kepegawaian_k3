@@ -4,6 +4,10 @@ import { eq, and, lte, gte } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { presensiHarian, pegawai, masterJabatan, masterKelasJabatan, rekapPresensiBulanan, pengajuanCuti } from '@/db/schema';
 import { kalkulasiKehadiranDariPersentasePotongan } from '@/lib/tukin/calculation';
+import {
+  getPresensiDiLuarPeriode,
+  isBarisHeaderPresensi,
+} from '@/lib/tukin/period-validation';
 import { revalidatePath } from 'next/cache';
 import * as xlsx from 'xlsx';
 
@@ -230,8 +234,18 @@ export async function prosesImportPresensiExcel(formData: FormData) {
       return { status: 'error', message: 'File Excel tidak ditemukan.' };
     }
 
-    const bulanTarget = Number(formData.get('bulan')) || (new Date().getMonth() + 1);
-    const tahunTarget = Number(formData.get('tahun')) || new Date().getFullYear();
+    const bulanTarget = Number(formData.get('bulan'));
+    const tahunTarget = Number(formData.get('tahun'));
+    if (
+      !Number.isInteger(bulanTarget) ||
+      bulanTarget < 1 ||
+      bulanTarget > 12 ||
+      !Number.isInteger(tahunTarget) ||
+      tahunTarget < 1900 ||
+      tahunTarget > 9999
+    ) {
+      return { status: 'error', message: 'Periode import presensi tidak valid.' };
+    }
 
     // 1. Baca Buffer Excel di Server
     const arrayBuffer = await file.arrayBuffer();
@@ -239,6 +253,20 @@ export async function prosesImportPresensiExcel(formData: FormData) {
     const workbook = xlsx.read(buffer, { type: 'buffer', cellDates: true });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows: any[][] = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: null });
+    const tanggalDiLuarPeriode = getPresensiDiLuarPeriode(
+      rows
+        .filter((row) => !isBarisHeaderPresensi(row))
+        .map((row) => formatDate(row[3]))
+        .filter((tanggal): tanggal is string => tanggal !== null),
+      bulanTarget,
+      tahunTarget,
+    );
+    if (tanggalDiLuarPeriode) {
+      return {
+        status: 'error',
+        message: `Tanggal ${tanggalDiLuarPeriode} tidak sesuai periode ${String(bulanTarget).padStart(2, '0')}/${tahunTarget}. Pilih periode yang sesuai atau gunakan file satu bulan.`,
+      };
+    }
 
     // 2. Ambil Data Master Pegawai
     const listPegawai = await db
@@ -263,11 +291,7 @@ export async function prosesImportPresensiExcel(formData: FormData) {
     // 3. Loop baris Excel untuk simpan presensi_harian & hitung akumulasi
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i] as any[];
-      if (!row || row.length === 0 || row.every(cell => cell === null)) continue;
-
-      const col0 = String(row[0] || '').trim().toLowerCase();
-      const col1 = String(row[1] || '').trim().toLowerCase();
-      if (col0 === 'no' || col1 === 'nama pegawai' || (col0 === '1' && col1 === '2')) continue;
+      if (isBarisHeaderPresensi(row)) continue;
 
       const namaCell = row[1] ? String(row[1]).trim() : null;
       const nipCell = row[2] ? String(row[2]).trim() : null;

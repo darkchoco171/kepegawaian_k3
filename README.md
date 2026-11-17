@@ -1,46 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SIMPEG K3
 
-## Getting Started
+SIMPEG K3 adalah aplikasi web internal untuk membantu administrator mengelola data pegawai, presensi, cuti, kinerja bulanan, Angka Kredit (PAK), dan perhitungan serta ekspor Tunjangan Kinerja (Tukin).
 
-First, run the development server:
+## Mulai cepat
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Prasyarat: Node.js yang kompatibel dengan Next.js 16, npm, dan database PostgreSQL yang dapat diakses melalui Neon Serverless.
+
+```powershell
+npm ci
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buat file `.env` di root proyek dan isi `DATABASE_URL` dengan connection string database development. Jangan gunakan kredensial atau database produksi untuk pengembangan maupun pengujian.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+DATABASE_URL=postgresql://<user>:<password>@<host>/<database>?sslmode=require
+```
 
-## Menyiapkan akun administrator
+Jalankan aplikasi:
 
-Kata sandi dapat diubah kapan saja dari halaman **Profil**. Penggantian kata sandi tidak diwajibkan saat login, sehingga alur fitur lain tetap bisa diuji di development.
+```powershell
+npm run dev
+```
 
-Seed akun administrator memerlukan `ADMIN_INITIAL_PASSWORD` yang disimpan di environment lokal/deployment, bukan di source control. Gunakan kata sandi sementara dan bagikan secara aman kepada administrator. Untuk E2E, atur `E2E_ADMIN_PASSWORD` atau gunakan `ADMIN_INITIAL_PASSWORD` dari environment lokal.
+Buka `http://localhost:3000`. Login membutuhkan akun yang sudah ada di database. Jika menyiapkan akun melalui seed administrator, lihat bagian seed dan variabel environment di [Panduan Developer](./PANDUAN-DEVELOPER.md).
 
-## Sinkronisasi skema database
+## Dokumentasi
 
-Jika ada perubahan skema di `src/db/schema.ts`, pastikan `DATABASE_URL` menunjuk ke database yang benar lalu jalankan `npx drizzle-kit push`. Fitur hapus pengajuan cuti memerlukan tabel `alokasi_saldo_cuti` untuk menyimpan rincian pemotongan saldo per tahun.
+- [Panduan Developer dan serah-terima](./PANDUAN-DEVELOPER.md) — setup, arsitektur, database, pengujian, dan catatan operasional.
+- [Panduan Penggunaan](./PANDUAN-PENGGUNAAN.md) — alur kerja operator/admin dan penjelasan fitur.
+- [Panduan Pengujian](./PANDUAN-PENGUJIAN.md) — skenario manual dan perintah pengujian otomatis.
+- [Laporan hasil E2E](./LAPORAN-HASIL-E2E-2026-10-20.md) — hasil pengujian browser yang terdokumentasi.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Perintah utama
 
-## Learn More
+| Perintah | Kegunaan |
+|---|---|
+| `npm run dev` | Menjalankan server development |
+| `npm run build` | Membuat build production |
+| `npm run start` | Menjalankan build production |
+| `npm run lint` | Menjalankan ESLint |
+| `npm run test:unit` | Menjalankan unit test |
+| `npm run test:integration` | Menjalankan integration test |
+| `npm run test:e2e` | Menjalankan E2E Playwright |
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Untuk konfigurasi database, kredensial test, seed data, dan peringatan perubahan skema, baca [Panduan Developer](./PANDUAN-DEVELOPER.md) terlebih dahulu.

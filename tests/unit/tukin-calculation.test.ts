@@ -10,8 +10,39 @@ import {
   kalkulasiKehadiranDariPersentasePotongan,
   kalkulasiKinerja,
 } from '../../src/lib/tukin/calculation';
+import {
+  getPegawaiTanpaRekapPresensi,
+  getPresensiDiLuarPeriode,
+  isBarisHeaderPresensi,
+} from '../../src/lib/tukin/period-validation';
 
 const baseTukin = 4_595_150;
+
+test('presensi import rejects dates outside its selected month', () => {
+  assert.equal(getPresensiDiLuarPeriode(['2026-10-01', '2026-10-31'], 10, 2026), undefined);
+  assert.equal(getPresensiDiLuarPeriode(['2026-10-01', '2026-11-01'], 10, 2026), '2026-11-01');
+});
+
+test('presensi import ignores numbered worksheet header rows during date validation', () => {
+  assert.equal(isBarisHeaderPresensi(['No', 'Nama Pegawai', 'NIP', 'Tanggal']), true);
+  assert.equal(isBarisHeaderPresensi([1, 2, 3, 4]), true);
+  assert.equal(isBarisHeaderPresensi(['Nama', '123456', '2026-10-04']), false);
+  assert.equal(isBarisHeaderPresensi([]), true);
+});
+
+test('Tukin calculation can identify employees to skip when they lack a period recap', () => {
+  assert.deepEqual(
+    getPegawaiTanpaRekapPresensi(
+      [{ idPegawai: 'pegawai-1' }, { idPegawai: 'pegawai-2' }],
+      [{ idPegawai: 'pegawai-1' }],
+    ),
+    ['pegawai-2'],
+  );
+  assert.deepEqual(
+    getPegawaiTanpaRekapPresensi([{ idPegawai: 'pegawai-1' }], [{ idPegawai: 'pegawai-1' }]),
+    [],
+  );
+});
 
 test('kalkulasiKinerja follows the full result and behavior matrix', () => {
   const cases = [
