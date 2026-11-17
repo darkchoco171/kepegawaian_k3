@@ -1,6 +1,5 @@
-# Dokumentasi Teknis & Panduan Serah Terima (Handover)
-**Sistem Pencatatan Riwayat Cuti Pegawai & Perhitungan Tunjangan Kinerja (Tukin)**  
-**Unit Kerja:** Tata Usaha Direktorat Bina Kelembagaan K3 — Kementerian Ketenagakerjaan RI
+# Dokumentasi Teknis
+**Sistem Pencatatan Riwayat Cuti Pegawai & Perhitungan Tunjangan Kinerja (Tukin)**
 
 ---
 
